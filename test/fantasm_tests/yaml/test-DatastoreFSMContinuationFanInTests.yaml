@@ -1,0 +1,129 @@
+state_machines:
+  
+- name: DatastoreFSMContinuationFanInTests
+  namespace: fantasm_tests.actions
+  states:
+    
+    - name: state-initial
+      entry: CountExecuteCalls
+      action: CountExecuteCalls
+      initial: True
+      transitions:
+        - event: next-event
+          to: state-continuation
+      
+    - name: state-continuation
+      entry: CountExecuteCalls
+      action: TestDatastoreContinuationFSMAction
+      continuation: True
+      transitions:
+        - event: next-event
+          to: state-fan-in
+      
+    - name: state-fan-in
+      entry: CountExecuteCallsFanInEntry
+      action: CountExecuteCallsFanIn
+      fan_in: 5
+      transitions:
+        - event: next-event
+          to: state-final
+      
+    - name: state-final
+      entry: CountExecuteCalls
+      action: CountExecuteCallsFinal
+      final: True
+      
+- name: DatastoreFSMContinuationFanInTestsInitCont
+  namespace: fantasm_tests.actions
+  states:
+    
+    - name: state-continuation
+      entry: CountExecuteCalls
+      action: TestDatastoreContinuationFSMAction
+      initial: True
+      continuation: True
+      transitions:
+        - event: next-event
+          to: state-fan-in
+      
+    - name: state-fan-in
+      entry: CountExecuteCallsFanInEntry
+      action: CountExecuteCallsFanIn
+      fan_in: 5
+      transitions:
+        - event: next-event
+          to: state-final
+      
+    - name: state-final
+      entry: CountExecuteCalls
+      action: CountExecuteCallsFinal
+      final: True
+      
+- name: DatastoreFSMContinuationFanInAndForkTests
+  namespace: fantasm_tests.actions
+  context_types:
+    key: google.appengine.ext.db.Key
+    data: json
+  
+  states:
+    
+    - name: state-continuation-and-fork
+      entry: CountExecuteCalls
+      action: TestContinuationAndForkFSMAction
+      initial: True
+      continuation: True
+      transitions:
+        - event: next-event
+          to: state-fan-in
+          
+    - name: state-fan-in
+      entry: CountExecuteCallsFanInEntry
+      action: CountExecuteCallsFanIn
+      fan_in: 5
+      transitions:
+        - event: next-event
+          to: state-final
+      
+    - name: state-final
+      entry: CountExecuteCalls
+      action: CountExecuteCallsFinal
+      final: True
+      
+- name: DatastoreFSMContinuationFanInDiamondTests
+  namespace: fantasm_tests.actions
+  context_types:
+    key: google.appengine.ext.db.Key
+  
+  states:
+    
+    - name: state-continuation
+      entry: CountExecuteCalls
+      action: HappySadContinuationFSMAction
+      initial: True
+      continuation: True
+      transitions:
+        - event: happy
+          to: state-happy
+        - event: sad
+          to: state-sad
+          
+    - name: state-happy
+      entry: CountExecuteCallsFanInEntry
+      action: CountExecuteCalls
+      transitions:
+        - event: next-event
+          to: state-fan-in
+          
+    - name: state-sad
+      entry: CountExecuteCalls
+      action: CountExecuteCalls
+      transitions:
+        - event: next-event
+          to: state-fan-in
+          
+    - name: state-fan-in
+      entry: CountExecuteCallsFanIn
+      action: CountExecuteCallsFanInFinal
+      fan_in: 5
+      final: True
+      

@@ -1,0 +1,4 @@
+state_machines:
+
+- import: ../../test/fantasm_tests/yaml/test-YamlImportCircular.yaml
+

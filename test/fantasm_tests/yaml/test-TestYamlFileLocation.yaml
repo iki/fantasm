@@ -1,0 +1,8 @@
+state_machines:
+  
+- name: MyMachine
+  states:
+  - name: MyState
+    action: fantasm_tests.MockAction2
+    initial: True
+    final: True

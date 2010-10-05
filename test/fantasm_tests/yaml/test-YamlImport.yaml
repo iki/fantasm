@@ -1,0 +1,12 @@
+state_machines:
+
+- import: ../../test/fantasm_tests/yaml/test-TypeCoercionTests.yaml
+- import: ../../test/fantasm_tests/yaml/test-TestYamlFileLocation.yaml
+
+- name: Foo
+  namespace: fantasm_tests.fsm_test
+  states:
+    - name: initial
+      initial: True
+      final: True
+      action: CountExecuteCalls

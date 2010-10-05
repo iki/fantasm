@@ -1,0 +1,67 @@
+state_machines:
+  
+- name: DatastoreFSMContinuationTests
+  namespace: fantasm_tests.actions
+  states:
+    
+    - name: state-initial
+      entry: CountExecuteCalls
+      action: CountExecuteCalls
+      initial: True
+      transitions:
+        - event: next-event
+          to: state-continuation
+      
+    - name: state-continuation
+      entry: CountExecuteCalls
+      action: TestDatastoreContinuationFSMAction
+      continuation: True
+      transitions:
+        - event: next-event
+          to: state-final
+      
+    - name: state-final
+      entry: CountExecuteCalls
+      action: CountExecuteCallsFinal
+      final: True
+
+- name: DatastoreFSMContinuationTestsInitCont
+  namespace: fantasm_tests.actions
+  states:
+    
+    - name: state-continuation
+      entry: CountExecuteCalls
+      action: TestDatastoreContinuationFSMAction
+      initial: True
+      continuation: True
+      transitions:
+        - event: next-event
+          to: state-final
+      
+    - name: state-final
+      entry: CountExecuteCalls
+      action: CountExecuteCallsFinal
+      final: True
+      
+- name: DatastoreFSMContinuationAndForkTests
+  namespace: fantasm_tests.actions
+  context_types:
+    key: google.appengine.ext.db.Key
+    data: json
+  
+  states:
+    
+    - name: state-continuation-and-fork
+      entry: CountExecuteCalls
+      action: TestContinuationAndForkFSMAction
+      initial: True
+      continuation: True
+      transitions:
+        - event: next-event
+          to: state-final
+      
+    - name: state-final
+      entry: CountExecuteCalls
+      action: CountExecuteCallsFinal
+      final: True
+      

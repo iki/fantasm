@@ -1,0 +1,19 @@
+
+state_machines:
+  
+- name: TypeCoercionTests
+  namespace: fantasm_tests.fsm_test
+
+  context_types:
+    
+    counter: types.IntType
+    batch-key: google.appengine.ext.db.Key
+    data: json
+    start-date: datetime
+
+  states:
+    
+    - name: initial
+      initial: True
+      final: True
+      action: CountExecuteCalls

@@ -1,0 +1,28 @@
+state_machines:
+
+- name: DoubleContinuationTests
+  namespace: fantasm_tests.actions
+  max_retries: 0
+  states:
+    
+    - name: DoubleContinuation1
+      entry: CountExecuteCalls
+      action: DoubleContinuation1
+      initial: True
+      continuation: True
+      transitions:
+        - event: ok
+          to: DoubleContinuation2
+          
+    - name: DoubleContinuation2
+      entry: CountExecuteCalls
+      action: DoubleContinuation2
+      continuation: True
+      transitions:
+        - event: okfinal
+          to: StateFinal
+
+    - name: StateFinal
+      entry: CountExecuteCalls
+      action: CountExecuteCallsFinal
+      final: True

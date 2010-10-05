@@ -1,0 +1,63 @@
+[GENERAL]
+# --ignore only seems to work as a command line option
+#ignore=selenium,feedparser.py
+#
+
+[MESSAGES CONTROL]
+# W0703: catch Exception: is valid in python2.5
+# W0511: TODO: FIXME: are valid tags that don't need a failure
+# I0011: disable the 'Locally disabling W1234' messages - makes failures easier to track down
+# I0013: disable the 'Ignoring entire file' messages - makes failures easier to track down
+# R0201: sometime we just want to use methods instead of functions, even if 'self' is not accessed
+# R0921: Abstract class not referenced.
+# R0922: we're building things iteratively, so it's OK if an abstract base class is only inherited once
+# W0142: * or ** magic is fine - it's well documented non-magic
+# R0801: duplicate code checker
+# E1101: '%s %r has no %r member'
+# E1103: Instance of 'X' has no member 'X' (but some types could not be inferred)
+
+disable-msg=W0703,W0511,I0011,I0013,R0201,R0921,R0922,W0142,R0801,E1101,E1103
+
+[BASIC]
+# f - file
+# e - exception
+# urlpatterns, handler404, handler500 - django
+good-names=f,e,urlpatterns,handler404,handler500,render_to_response,register,form_list
+
+# the default for const-rgx does not include '0'
+const-rgx=[A-Z_][A-Z0-9_]*|__.*__$
+
+# camel case for all variable, attributes, functions and methods
+function-rgx=[a-z_][a-zA-Z0-9]*$
+# __get_state__ etc. are not camel case, so we add an 'OR' to the regex
+method-rgx=[a-z_][a-zA-Z0-9]*|__[a-z_]*__$
+variable-rgx=[a-z_][a-zA-Z0-9]*$
+inlinevar-rgx=[a-z_][a-zA-Z0-9]*$
+# extra leading underscores are valid for private members
+attr-rgx=[_]*[a-z_][a-zA-Z0-9]*$
+argument-rgx=[a-z_][a-zA-Z0-9]*$
+class-rgx=[A-Z_][a-zA-Z0-9]+|.*_test$
+
+[DESIGN]
+min-public-methods=0
+max-public-methods=60
+max-args=15
+max-branchs=20
+max-locals=25
+max-statements=70
+max-lines=1500
+max-attributes=15
+
+[FORMAT]
+max-line-length=120
+
+[TYPECHECK]
+ignored-classes=google.appengine.api.memcache
+
+[MISCELLANEOUS]
+notes=FIXME,XXX,TODO
+
+[REPORTS]
+# no reports makes failures easier to track down
+reports=n
+include-ids=y

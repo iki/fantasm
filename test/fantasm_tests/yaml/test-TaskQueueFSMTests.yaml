@@ -1,0 +1,121 @@
+state_machines:
+
+- name: SelfTransitionTests
+  namespace: fantasm_tests.actions
+  queue: default
+  max_retries: 10
+  
+  states:
+  
+    - name: state1
+      entry: CountExecuteCalls
+      action: CountExecuteCallsSelfTransition
+      exit: CountExecuteCalls
+      initial: True
+      transitions:
+        - event: next-event1
+          to: state1
+          action: CountExecuteCalls
+        - event: next-event2
+          to: state2
+          action: CountExecuteCalls
+
+    - name: state2
+      entry: CountExecuteCalls
+      action: CountExecuteCallsFinal
+      final: True
+
+- name: TaskQueueFSMTests
+  namespace: fantasm_tests.actions
+  queue: default
+  max_retries: 10
+
+  states:
+    
+    - name: state-initial
+      entry: CountExecuteCalls
+      action: CountExecuteCalls
+      exit: CountExecuteCalls
+      initial: True
+      transitions:
+        - event: next-event
+          to: state-normal
+          action: CountExecuteCalls
+          max_retries: 99
+      
+    - name: state-normal
+      entry: CountExecuteCalls
+      action: CountExecuteCalls
+      exit: CountExecuteCalls
+      transitions:
+        - event: next-event
+          to: state-final
+          action: CountExecuteCalls
+          countdown: 20
+      
+    - name: state-final
+      entry: CountExecuteCalls
+      action: CountExecuteCallsFinal
+      final: True
+      
+- name: ContextRecorder
+  namespace: fantasm_tests.actions
+  queue: default
+  max_retries: 10
+  
+  context_types:
+      db_Key_defined_in_context_types: google.appengine.ext.db.Key
+      list_of_db_Key: google.appengine.ext.db.Key
+      list_of_db_Key_len_1: google.appengine.ext.db.Key
+      dict_db_Key_defined_in_context_types: json
+      dict_int_keys_defined_in_context_types: json
+      dict_str_keys_defined_in_context_types: json
+      dict_db_Key_defined_in_context_types: json
+      bool1: bool
+      bool2: bool
+      
+
+  states:
+    
+    - name: state-initial
+      action: CountExecuteCalls
+      initial: True
+      transitions:
+        - event: next-event
+          to: state-final
+      
+    - name: state-final
+      action: ContextRecorder
+      final: True
+      
+- name: TaskQueueFSMTestsFinalExit
+  namespace: fantasm_tests.actions
+  queue: default
+  max_retries: 10
+
+  states:
+    
+    - name: state-initial
+      entry: CountExecuteCalls
+      action: CountExecuteCalls
+      exit: CountExecuteCalls
+      initial: True
+      transitions:
+        - event: next-event
+          to: state-normal
+          action: CountExecuteCalls
+      
+    - name: state-normal
+      entry: CountExecuteCalls
+      action: CountExecuteCalls
+      exit: CountExecuteCalls
+      transitions:
+        - event: next-event
+          to: state-final
+          action: CountExecuteCalls
+      
+    - name: state-final
+      entry: CountExecuteCalls
+      action: CountExecuteCallsFinal
+      exit: CountExecuteCalls
+      final: True

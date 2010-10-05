@@ -1,0 +1,18 @@
+state_machines:
+  
+- name: TaskQueueFSMRetryTests
+  namespace: fantasm_tests.actions
+  max_retries: 10
+  
+  states:
+    - name: state-initial
+      action: RaiseExceptionAction
+      initial: True
+      transitions:
+        - event: ok
+          to: state-final
+          max_retries: 99
+          
+    - name: state-final
+      action: RaiseExceptionAction
+      final: True

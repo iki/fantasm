@@ -1,0 +1,65 @@
+<project name="fantasm" default="test" basedir=".">
+
+    <property name="test.verbosity" value="1"/>
+    <property name="test.loglevel" value="40"/>
+    <property name="tests" value=""/>
+    <property name="srcdir" value="${basedir}/src"/>
+    <property name="testdir" value="${basedir}/test"/>
+    <property name="toolsdir" value="${basedir}/tools"/>
+    <property name="appenginedir" value="/usr/local/google_appengine"/>
+    <property name="tests.pythonpath" value="${testdir}:${srcdir}:${basedir}:${appenginedir}:${appenginedir}/lib/yaml/lib:${appenginedir}/lib/webob:${appenginedir}/lib/django:${toolsdir}"/>
+
+    <target name="clean">
+        <delete>
+            <fileset dir="${srcdir}" includes="**/*.pyc"/>
+            <fileset dir="${srcdir}" includes="**/*.pyo"/>
+            <fileset dir="${testdir}" includes="**/*.pyc"/>
+            <fileset dir="${testdir}" includes="**/*.pyo"/>
+        </delete>
+    </target>
+
+    <target name="test">
+        <exec dir="${basedir}" executable="python" failonerror="true">
+            <env key="PYTHONPATH" value="${tests.pythonpath}"/>
+            <env key='APPENGINEDIR' value='${appenginedir}'/>
+            <env key="UNITTEST_VERBOSITY" value="${test.verbosity}"/>
+            <env key="UNITTEST_LOGLEVEL" value="${test.loglevel}"/>
+            <arg line="${toolsdir}/test_runner.py ${tests}"/>
+        </exec>
+    </target>
+    
+    <target name="pylint-module-src">
+        <property name="pylint.module" value="fantasm"/>
+        <property name="pylint.cwd" value="${srcdir}"/>
+    </target>
+    
+    <target name="pylint-module-test">
+        <property name="pylint.module" value="fantasm_tests complex_machine email_batch main simple_machine url_fanout"/>
+        <property name="pylint.cwd" value="${testdir}"/>
+    </target>
+
+    <target name="_pylint">
+        <exec dir="${pylint.cwd}" executable="pylint" failonerror="false" outputproperty="pylint.output">
+            <env key="PATH" value="/usr/local/bin" />
+            <env key="PYTHONPATH" value="${tests.pythonpath}" />
+            <arg line="--rcfile=${toolsdir}/pylintrc --include-ids=y ${pylint.module}"/>
+        </exec>
+        
+        <!-- echo for debugging -->
+        <echo>${pylint.output}</echo>
+        
+        <!-- make sure the output is as expected -->
+        <fail message="Pylint produced output. It must have failed.">
+            <condition>
+                <not>
+                    <equals arg1="${pylint.output}" arg2=""/>
+                </not>
+            </condition>
+        </fail>
+    </target>
+    
+    <target name="pylint" depends="pylint-module-src, _pylint"/>
+    <target name="pylint-test" depends="pylint-module-test, _pylint"/>
+        
+
+</project>

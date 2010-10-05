@@ -1,0 +1,142 @@
+#
+# http://code.google.com/p/fantasm
+#
+
+root_url: /fantasm/
+
+state_machines:
+
+
+##############################################################################
+- name: SimpleMachine
+  namespace: simple_machine
+  max_retries: 2
+
+  states:
+  - name: state1
+    initial: True # must be exactly one
+    entry: EntryAction1
+    action: DoAction1
+    exit: ExitAction1
+    transitions:
+      - event: event1
+        to: state2
+        action: TransitionAction1
+  
+  - name: state2
+    entry: EntryAction2
+    action: DoAction2
+    exit: ExitAction2
+    transitions:
+      - event: event2
+        to: state3
+        action: TransitionAction2
+        max_retries: 3
+    
+  - name: state3
+    entry: EntryAction3
+    action: DoAction3
+    # exit: ExitAction3 # cannot have an exit on a final state
+    final: True # optional, may be many, must be at least one
+
+
+##############################################################################
+- name: UrlFanoutExample
+  namespace: url_fanout
+ 
+  states:
+   
+  - name: TwitterSearch
+    action: TwitterSearch
+    initial: True
+    continuation: True
+    final: True
+
+
+##############################################################################
+- name: EmailBatch
+  namespace: email_batch
+  
+  context_types:
+    batch-key: google.appengine.ext.db.Key
+  
+  states:
+    
+  - name: start-batch
+    action: StartBatch
+    initial: True
+    transitions:
+      - event: next
+        to: send-email
+    
+  - name: send-email
+    action: SendEmail
+    continuation: True
+    transitions:
+      - event: next
+        to: update-counter
+    
+  - name: update-counter
+    action: UpdateCounter
+    final: True
+    fan_in: 30
+
+- name: ValidateEmailBatch
+  namespace: email_batch
+  
+  context_types:
+    batch-key: google.appengine.ext.db.Key
+
+  states:
+    
+  - name: validate-batch
+    action: ValidateBatch
+    initial: True
+    final: True
+
+##############################################################################
+- name: ComplexMachine
+  namespace: complex_machine
+  max_retries: 2
+  
+  context_types:
+    key: google.appengine.ext.db.Key
+
+  states:
+  - name: state1
+    initial: True # must be exactly one
+    entry: EntryAction1
+    action: DoAction1
+    transitions:
+      - event: event1
+        to: state2
+
+  - name: state2
+    entry: EntryAction2
+    action: MyDatastoreContinuationFSMAction
+    continuation: True
+    transitions:
+      - event: event2
+        to: state3
+        max_retries: 3
+
+  - name: state3
+    entry: EntryAction3
+    action: DoAction3
+    fan_in: 10
+    transitions:
+      - event: event3
+        to: state4
+
+  - name: state4
+    entry: EntryAction4
+    action: DoAction4
+    exit: ExitAction4
+    transitions:
+      - event: event4
+        to: state5
+
+  - name: state5
+    entry: EntryAction5
+    action: FinalAction5
+    final: True # optional, may be many, must be at least one

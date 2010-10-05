@@ -1,0 +1,20 @@
+state_machines:
+
+- name: FileFSMContinuationTests
+  namespace: fantasm_tests.actions
+  max_retries: 0
+  states:
+    
+    - name: state-continuation
+      entry: CountExecuteCalls
+      action: TestFileContinuationFSMAction
+      initial: True
+      continuation: True
+      transitions:
+        - event: next-event
+          to: state-final
+      
+    - name: state-final
+      entry: CountExecuteCalls
+      action: CountExecuteCallsFinal
+      final: True
