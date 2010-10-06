@@ -27,6 +27,7 @@ datasore to see the results.</p>
 
 <h2>1. Simple Machine</h2>
 <p>This machine has a simple set of states and just moves through them. A log line is emitted for each event.</p>
+<p>Click <a href="/fantasm/graphviz/SimpleMachine/">/fantasm/graphviz/SimpleMachine/</a> to view a GraphViz diagram of the machine.</p>
 <p>Click <a href="/fantasm/fsm/SimpleMachine/">/fantasm/fsm/SimpleMachine/</a> to kick a simple workflow off.</p>
 <p>Click <a href="/fantasm/fsm/SimpleMachine/?failure=1">/fantasm/fsm/SimpleMachine/?failure=1</a> to kick a simple workflow off
 with randomly injected exceptions.</p>
@@ -36,6 +37,7 @@ with randomly injected exceptions.</p>
 This machine fans out multiple machine instances. Each instance grabs a page of results from a Twitter search
 and stores them in datastore. This machine has only a single state (that is a "continuation" state).
 </p>
+<p>Click <a href="/fantasm/graphviz/UrlFanoutExample/">/fantasm/graphviz/UrlFanoutExample/</a> to view a GraphViz diagram of the machine.</p>
 <p>Click <a href="/fantasm/fsm/UrlFanoutExample/">/fantasm/fsm/UrlFanoutExample/</a> 
    to kick a continuation workflow off.</p>
    
@@ -45,6 +47,7 @@ This machine fans-out a new instance to send an email to each in a list of subsc
 fanned-in on a 30 second interval to increment the count of number of emails sent.
 </p>
 <p>First, click <a href="/create-subscribers/">/create-subscribers/</a> to create test subscribers.</p>
+<p>Click <a href="/fantasm/graphviz/EmailBatch/">/fantasm/graphviz/EmailBatch/</a> to view a GraphViz diagram of the machine.</p>
 <p>Click <a href="/fantasm/fsm/EmailBatch/">/fantasm/fsm/EmailBatch/</a> to kick an example email batch (fan-out / fan-in, no emails sent).</p>
 
 <h2>4. Complex Machine</h2>
@@ -52,6 +55,7 @@ fanned-in on a 30 second interval to increment the count of number of emails sen
 A more complex machine that we use for testing some advanced interactions.
 </p>
 <p>First, click <a href="/MakeAModel/">/MakeAModel/</a> to create a TestModel.</p>
+<p>Click <a href="/fantasm/graphviz/ComplexMachine/">/fantasm/graphviz/ComplexMachine/</a> to view a GraphViz diagram of the machine.</p>
 <p>Click <a href="/fantasm/fsm/ComplexMachine/">/fantasm/fsm/ComplexMachine/</a> to kick a workflow off.</p>
 <p>Click <a href="/fantasm/fsm/ComplexMachine/?failure=1">/fantasm/fsm/ComplexMachine/?failure=1</a> to kick a workflow off
 with randomly injected exceptions.</p>

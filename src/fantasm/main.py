@@ -39,7 +39,7 @@ def createApplication():
         an instance of webapp.WSGIApplication with all fantasm handlers registered.
     """
     return webapp.WSGIApplication([
-        (r"^/[^\/]+/fsm/graphviz/.+", handlers.FSMGraphvizHandler),
+        (r"^/[^\/]+/graphviz/.+", handlers.FSMGraphvizHandler),
         (r"^/[^\/]+/fsm/.+", handlers.FSMHandler),
     ],
     debug=True)
