@@ -1,0 +1,70 @@
+
+state_machines:
+
+#------------------------------------------------------------------------------
+# Backup
+#------------------------------------------------------------------------------
+
+- name: Backup
+  namespace: backup
+  queue: backup
+  max_retries: 10
+  
+  context_types:
+    lastBackup: datetime
+
+  states:
+    
+  - name: SelectBackup
+    initial: True
+    action: SelectBackup
+    transitions:
+    - event: ok
+      to: EnumerateBackupModels
+    
+  - name: EnumerateBackupModels
+    continuation: True
+    action: EnumerateBackupModels
+    transitions:
+    - event: ok
+      to: BackupEntity
+  
+  - name: BackupEntity
+    continuation: True
+    action: BackupEntity
+    final: True
+
+#------------------------------------------------------------------------------
+# DeleteBackup
+#------------------------------------------------------------------------------
+
+- name: DeleteBackup
+  namespace: backup
+  queue: backup
+  max_retries: 10
+  
+  context_types:
+    daysOld: int
+    backupDate: datetime
+  
+  states: 
+    
+  - name: ComputeDate
+    action: ComputeDate
+    initial: True
+    transitions:
+    - event: ok
+      to: SelectBackupToDelete
+    
+  - name: SelectBackupToDelete
+    action: SelectBackupToDelete
+    continuation: True
+    final: True # might be nothing to delete
+    transitions:
+    - event: ok
+      to: DeleteBackupEntity
+      
+  - name: DeleteBackupEntity
+    action: DeleteBackupEntity
+    final: True
+    continuation: True

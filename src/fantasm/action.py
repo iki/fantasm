@@ -67,6 +67,8 @@ class DatastoreContinuationFSMAction(ContinuationFSMAction):
         # add first obj.results item on obj.result - convenient for batch size 1
         if obj.results and len(obj.results) > 0:
             obj.result = obj.results[0]
+        else:
+            obj.result = None
             
         if len(obj.results) == limit:
             return query.cursor()

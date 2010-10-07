@@ -5,6 +5,7 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.ext import webapp
 from complex_machine import TestModel
 import email_batch
+import backup
 
 # pylint: disable-msg=C0111, C0103
 # - docstring not reqd
@@ -60,6 +61,25 @@ A more complex machine that we use for testing some advanced interactions.
 <p>Click <a href="/fantasm/fsm/ComplexMachine/?failure=1">/fantasm/fsm/ComplexMachine/?failure=1</a> to kick a workflow off
 with randomly injected exceptions.</p>
 
+<h2>5. Incremental Backup</h2>
+<p>
+A Fantasm-based mechanism to backup data incrementally to an alternate datastore namespace. Also includes
+a machine to scrub out aged backups.
+</p>
+<p>First, click <a href='/backup/populate/'>/backup/populate/</a> to create some test data.</p>
+<p>Click <a href='/fantasm/fsm/Backup/'>/fantasm/fsm/Backup/</a> to start the backup.</p>
+<p>In the console, look at _Backup model to see what backupId was created. This is the name of the datastore namespace
+where the data is backed up.</p>
+<p>Also, look at the backup queue. You will see a task queued into the future; this is the delete aged backups task.
+You can go ahead and delete it, we'll invoke it manually below.</p>
+</p>Click <a href='/backup/populate/'>/backup/populate/</a> again to create some new data and overwrite existing data.</p>
+<p>Click <a href='/fantasm/fsm/Backup/'>/fantasm/fsm/Backup/</a> to start the incremental backup. Only new data will be
+backed up.</p>
+<p>Click <a href='/fantasm/fsm/DeleteBackup/?daysOld=0'>/fantasm/fsm/DeleteBackup/?daysOld=0</a> to kick off
+a delete aged backups job. daysOld=0 means delete the most recent backups. This will remove the entries from _Backup as
+well as the corresponding backup entities in the corresponding datastore namespaces.</a>
+
+
 </body>
 </html>
 """)
@@ -72,7 +92,8 @@ class MakeAModel(webapp.RequestHandler):
 application = webapp.WSGIApplication([
     ('/', HomePage), 
     ('/MakeAModel/', MakeAModel),
-    ('/create-subscribers/', email_batch.CreateSubscribers)
+    ('/create-subscribers/', email_batch.CreateSubscribers),
+    ('/backup/populate/', backup.PopulateBackupExample)
 ], debug=True)
 
 def main():

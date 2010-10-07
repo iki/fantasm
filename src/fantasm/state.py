@@ -166,8 +166,5 @@ class State(object):
             if not isinstance(nextEvent, str) or not constants.NAME_RE.match(nextEvent):
                 raise InvalidEventNameRuntimeError(nextEvent, context.machineName, context.currentState.name,
                                                    context.instanceName)
-            if context.currentState.isFinalState:
-                raise InvalidFinalEventRuntimeError(nextEvent, context.machineName, context.currentState.name,
-                                                    context.instanceName)
             
         return nextEvent

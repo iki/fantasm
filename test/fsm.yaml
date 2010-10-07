@@ -6,6 +6,7 @@ root_url: /fantasm/
 
 state_machines:
 
+- import: backup.yaml
 
 ##############################################################################
 - name: SimpleMachine

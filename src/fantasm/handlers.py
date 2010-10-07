@@ -70,8 +70,8 @@ class FSMGraphvizHandler(webapp.RequestHandler):
 """
 <html>
 <head></head>
-<body>
-<form action='http://chart.apis.google.com/chart' method='POST'>
+<body onload="javascript:document.forms.chartform.submit();">
+<form id='chartform' action='http://chart.apis.google.com/chart' method='POST'>
   <input type="hidden" name="cht" value="gv:dot"  />
   <input type="hidden" name="chl" value='%(chl)s'  />
   <input type="submit" value="Generate GraphViz .png" />
