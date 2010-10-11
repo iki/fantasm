@@ -20,7 +20,7 @@ Copyright 2010 VendAsta Technologies Inc.
 import logging
 from fantasm import constants
 from fantasm.transition import Transition
-from fantasm.exceptions import UnknownEventError, InvalidEventNameRuntimeError, InvalidFinalEventRuntimeError
+from fantasm.exceptions import UnknownEventError, InvalidEventNameRuntimeError
 
 class State(object):
     """ A state object for a machine. """
@@ -127,15 +127,6 @@ class State(object):
             try:
                 token = context.get(constants.CONTINUATION_PARAM, None)
                 nextToken = context.currentState.doAction.continuation(contextOrContexts, obj, token=token)
-                
-                # In the case of a datastore continuation, you may not know that you are done until you go
-                # "one past" the end. In this special case, we'll do special work to avoid calling the execute
-                # handler with no results.
-                if hasattr(obj, 'results') and not obj.results:
-                    logging.info('No continuation results. Terminating machine. (Machine %s, State %s)',
-                                 context.machineName, 
-                                 context.currentState.name)
-                    obj[constants.TERMINATED_PARAM] = True
                 if nextToken:
                     context.continuation(nextToken)
                 context.pop(constants.CONTINUATION_PARAM, None) # pop this off because it is really long

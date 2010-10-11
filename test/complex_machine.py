@@ -17,6 +17,8 @@ class MyDatastoreContinuationFSMAction(DatastoreContinuationFSMAction):
     def getBatchSize(self, context, obj):
         return 2
     def execute(self, context, obj):
+        if not obj['results']:
+            return None
         logging.info('MyDatastoreFSMContinuationAction.execute(): %s', [o.key().id() for o in obj.results])
         context['key'] = [r.key() for r in obj.results] # would be nice for this casting on .put()
         time.sleep(5.0 * random.random())

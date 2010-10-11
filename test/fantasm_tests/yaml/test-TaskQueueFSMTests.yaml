@@ -119,3 +119,22 @@ state_machines:
       action: CountExecuteCallsFinal
       exit: CountExecuteCalls
       final: True
+
+- name: FinalStateCanEmitEvent
+  namespace: fantasm_tests.actions
+  states:
+  - name: InitialState
+    action: FSCEE_InitialState
+    initial: True
+    transitions:
+    - event: ok
+      to: OptionalFinalState
+  - name: OptionalFinalState
+    action: FSCEE_OptionalFinalState
+    final: True
+    transitions:
+    - event: ok
+      to: FinalState
+  - name: FinalState
+    action: FSCEE_FinalState
+    final: True

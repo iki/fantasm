@@ -382,6 +382,7 @@ class FSMContext(dict):
                 self.queueDispatch(nextEvent)
             else:
                 # if we're not in a final state, emit a log message
+                # FIXME - somehow we should avoid this message if we're in the "last" step of a continuation...
                 if not self.currentState.isFinalState and not obj.get(constants.TERMINATED_PARAM):
                     logging.critical('Non-final state did not emit an event. Machine has terminated in an ' +
                                      'unknown state. (Machine %s, State %s)' %

@@ -62,15 +62,17 @@ class DatastoreContinuationFSMAction(ContinuationFSMAction):
         limit = self.getBatchSize(context, obj)
         
         # place results on obj.results
-        obj.results = query.fetch(limit)
+        obj['results'] = query.fetch(limit)
+        obj.results = obj['results'] # deprecated interface
         
         # add first obj.results item on obj.result - convenient for batch size 1
-        if obj.results and len(obj.results) > 0:
-            obj.result = obj.results[0]
+        if obj['results'] and len(obj['results']) > 0:
+            obj['result'] = obj['results'][0]
         else:
-            obj.result = None
+            obj['result'] = None
+        obj.result = obj['result'] # deprecated interface
             
-        if len(obj.results) == limit:
+        if len(obj['results']) == limit:
             return query.cursor()
         
     def getQuery(self, context, obj):

@@ -148,6 +148,8 @@ class TestDatastoreContinuationFSMAction(DatastoreContinuationFSMAction):
             raise Exception()
         return super(TestDatastoreContinuationFSMAction, self).continuation(context, obj, token=token)
     def execute(self, context, obj):
+        if not obj.results:
+            return None
         self.count += 1
         context['__count__'] = self.count
         if self.count == self.failat:
@@ -159,6 +161,8 @@ class TestDatastoreContinuationFSMAction(DatastoreContinuationFSMAction):
     
 class HappySadContinuationFSMAction(TestDatastoreContinuationFSMAction):
     def execute(self, context, obj):
+        if not obj.results:
+            return None
         self.count += 1
         if self.count == self.failat:
             raise Exception()
@@ -219,6 +223,8 @@ class TestContinuationAndForkFSMAction(DatastoreContinuationFSMAction):
             raise Exception()
         return super(TestContinuationAndForkFSMAction, self).continuation(context, obj, token=token)
     def execute(self, context, obj):
+        if not obj.results:
+            return None
         self.count += 1
         context['__count__'] = self.count
         context['data'] = {'a': 'b'}
@@ -286,3 +292,24 @@ class DoubleContinuation2(object):
         #logging.critical('%s-%s' % (context['c1'], context['c2']))
         DoubleContinuation2.CONTEXTS.append(context)
         return 'okfinal'
+
+class FSCEE_InitialState(object):
+    def __init__(self):
+        self.count = 0
+    def execute(self, context, obj):
+        self.count += 1
+        return 'ok'
+        
+class FSCEE_OptionalFinalState(object):
+    def __init__(self):
+        self.count = 0
+    def execute(self, context, obj):
+        self.count += 1
+        # a final state should be able to emit an event
+        return 'ok'
+        
+class FSCEE_FinalState(object):
+    def __init__(self):
+        self.count = 0
+    def execute(self, context, obj):
+        self.count += 1

@@ -961,4 +961,16 @@ class RunTasksWithFailuresTests_DatastoreFSMContinuationFanInTests(RunTasksBaseT
 class RunTasksWithFailuresTests_DatastoreFSMContinuationFanInTests_POST(
                                                         RunTasksWithFailuresTests_DatastoreFSMContinuationFanInTests):
     METHOD = 'POST'
+
+class FinalStateCanEmitEventTests(RunTasksBaseTest):
+    
+    FILENAME = 'test-TaskQueueFSMTests.yaml'
+    MACHINE_NAME = 'FinalStateCanEmitEvent'
         
+    def test_DatastoreFSMContinuationTests(self):
+        self.context.initialize() # queues the first task
+        ran = runQueuedTasks(queueName=self.context.queueName)
+        counts = getCounts(self.machineConfig)
+        self.assertEquals(1, counts['InitialState']['action'])
+        self.assertEquals(1, counts['OptionalFinalState']['action'])
+        self.assertEquals(1, counts['FinalState']['action'])

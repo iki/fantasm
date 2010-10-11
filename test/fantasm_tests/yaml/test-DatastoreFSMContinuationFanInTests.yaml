@@ -16,6 +16,7 @@ state_machines:
       entry: CountExecuteCalls
       action: TestDatastoreContinuationFSMAction
       continuation: True
+      final: True # query may return no results
       transitions:
         - event: next-event
           to: state-fan-in
@@ -41,6 +42,7 @@ state_machines:
       entry: CountExecuteCalls
       action: TestDatastoreContinuationFSMAction
       initial: True
+      final: True # query may return no results
       continuation: True
       transitions:
         - event: next-event
@@ -71,6 +73,7 @@ state_machines:
       entry: CountExecuteCalls
       action: TestContinuationAndForkFSMAction
       initial: True
+      final: True # query may return no results
       continuation: True
       transitions:
         - event: next-event
@@ -100,6 +103,7 @@ state_machines:
       entry: CountExecuteCalls
       action: HappySadContinuationFSMAction
       initial: True
+      final: True # query may return no results
       continuation: True
       transitions:
         - event: happy

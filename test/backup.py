@@ -35,6 +35,11 @@ class Company(db.Model):
     createdDate = db.DateTimeProperty(auto_now_add=True)
     modifiedDate = db.DateTimeProperty(auto_now=True)
 
+# Just add any new models to this tuple. 
+# Use a db.DateTimeProperty(auto_now=True) in the middle column above to get incremental 
+# semantics (without one, you'll get a full backup of the model nightly, which is a bit wasteful). 
+# The backup batch size is an appropriate size for a batch db.put(), 
+# i.e., choose a size that can fit in a single proto buffer safely. If in doubt, just use a size of 1.
 BACKUP_CONFIG = (
      # MODEL                          MODIFIED DATE      BACKUP BATCH SIZE
     (Account,                         'modifiedDate',      1),
@@ -78,20 +83,20 @@ class EnumerateBackupModels(FSMAction):
     def continuation(self, context, obj, token=None):
         """ Returns each model to be operated on. """
         if not token:
-            obj.results = BACKUP_MODELS[0]
+            obj['model'] = BACKUP_MODELS[0]
             return BACKUP_MODELS[1] if len(BACKUP_MODELS) > 1 else None
         else:
             # find next in list
             for i in range(0, len(BACKUP_MODELS)):
                 if BACKUP_MODELS[i] == token:
-                    obj.results = BACKUP_MODELS[i]
+                    obj['model'] = BACKUP_MODELS[i]
                     return BACKUP_MODELS[i+1] if i < len(BACKUP_MODELS)-1 else None
         return None # this occurs if a token passed in is not found in list - shouldn't happen
     
     def execute(self, context, obj):
         """ Updates the backup meta information. """
         backupId = context['backupId']
-        model = obj.results
+        model = obj['model']
         
         def tx():
             """ Gets the backup meta information for this model, creating if necessary. """
@@ -134,9 +139,9 @@ class BackupEntity(DatastoreContinuationFSMAction):
     def execute(self, context, obj):
         """ Copies all information to a BackupAccount entity. """
         
-        if not obj.results:
+        if not obj['results']:
             # query may return no results
-            return
+            return None
         
         model = context['model']
         backupId = context['backupId']
@@ -187,8 +192,8 @@ class SelectBackupToDelete(DatastoreContinuationFSMAction):
         
     def execute(self, context, obj):
         """ Adds the backup_id and model to the context. """
-        if not obj.results:
-            return
+        if not obj['results']:
+            return None
         backupEntity = obj.result
         context['model'] = backupEntity.model
         context['backupId'] = backupEntity.backupId
@@ -211,7 +216,8 @@ class DeleteBackupEntity(DatastoreContinuationFSMAction):
         
     def execute(self, context, obj):
         """ Actually delete the keys. """
-        db.delete(obj.results)
+        if obj['results']:
+            db.delete(obj['results'])
 
 
 FIRST_NAMES = ['Abe', 'Bob', 'Carol', 'Dale', 'Ewan', 'Fred', 'Georgina', 'Hanna']

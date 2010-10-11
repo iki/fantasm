@@ -116,6 +116,7 @@ state_machines:
     entry: EntryAction2
     action: MyDatastoreContinuationFSMAction
     continuation: True
+    final: True # query may return no results
     transitions:
       - event: event2
         to: state3
