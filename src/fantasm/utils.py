@@ -82,8 +82,8 @@ def outputMachineConfig(machineConfig):
     lines.append('digraph G {')
     lines.append('label="%s"' % machineConfig.name)
     lines.append('labelloc="t"')
-    lines.append('"__start__" [shape=circle,style=filled,fillcolor=black,fontcolor=white];')
-    lines.append('"__end__" [shape=doublecircle,style=filled,fillcolor=black,fontcolor=white];')
+    lines.append('"__start__" [label="start",shape=circle,style=filled,fillcolor=black,fontcolor=white,fontsize=9];')
+    lines.append('"__end__" [label="end",shape=doublecircle,style=filled,fillcolor=black,fontcolor=white,fontsize=9];')
     for stateConfig in machineConfig.states.values():
         lines.append(outputStateConfig(stateConfig))
         if stateConfig.initial:
