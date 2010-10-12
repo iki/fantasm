@@ -94,12 +94,12 @@ class Configuration(object):
     def __init__(self, configDict, importedAlready=None):
         """ Constructs the configuration from a dictionary of values. """
         
+        if constants.STATE_MACHINES_ATTRIBUTE not in configDict:
+            raise exceptions.StateMachinesAttributeRequiredError()
+        
         self.rootUrl = configDict.get(constants.ROOT_URL_ATTRIBUTE, constants.DEFAULT_ROOT_URL)
         if not self.rootUrl.endswith('/'):
             self.rootUrl += '/'
-        
-        if constants.STATE_MACHINES_ATTRIBUTE not in configDict:
-            raise exceptions.StateMachinesAttributeRequiredError()
             
         self.machines = {}
         for machineDict in configDict[constants.STATE_MACHINES_ATTRIBUTE]:

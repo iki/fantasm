@@ -1,4 +1,4 @@
 state_machines:
 
-- import: ../../test/fantasm_tests/yaml/test-TypeCoercionTests.yaml
-- import: ../../test/fantasm_tests/yaml/test-TestYamlFileLocation.yaml
+- import: test/fantasm_tests/yaml/test-TypeCoercionTests.yaml
+- import: test/fantasm_tests/yaml/test-TestYamlFileLocation.yaml
