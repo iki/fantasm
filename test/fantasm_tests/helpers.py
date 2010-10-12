@@ -135,8 +135,13 @@ def runQueuedTasks(queueName='default'):
                 elif eta > now:
                     runAgain = True
                     continue
-            
-            handler = fantasm.handlers.FSMHandler()
+                
+            record = True
+            if task['url'] == '/fantasm/log/':
+                record = False
+                handler = fantasm.handlers.FSMLogHandler()
+            else:
+                handler = fantasm.handlers.FSMHandler()
             parts = task['url'].split('?')
             assert 1 <= len(parts) <= 2
             
@@ -162,12 +167,14 @@ def runQueuedTasks(queueName='default'):
                 {'GET': handler.get, 'POST': handler.post}[task['method']]() # call the correct dispatch
                 runAgain = True
                 alreadyRun.append(task['name'])
-                runList.append(task['name'])
+                if record:
+                    runList.append(task['name'])
                 
             except Exception:
                 logging.debug("Error running Task. This would be a 500 error.", exc_info=1)
                 runAgain = True
-                runList.append(task['name'])
+                if record:
+                    runList.append(task['name'])
                 retries[task['name']] = retries.get(task['name'], 0) + 1
             
     return runList

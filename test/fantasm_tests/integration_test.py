@@ -1,9 +1,10 @@
 """ Integration tests for testing the Task execution order etc. """
 import re
+import logging
 
 import random # pylint: disable-msg=W0611
 from fantasm import config # pylint: disable-msg=W0611
-from fantasm.models import _FantasmFanIn
+from fantasm.models import _FantasmFanIn, _FantasmInstance, _FantasmLog
 from fantasm_tests.helpers import runQueuedTasks
 from fantasm_tests.helpers import overrideFails
 from fantasm_tests.helpers import setUpByFilename
@@ -49,6 +50,58 @@ class RunTasksBaseTest(AppEngineTestCase):
                         machineName=machineName,
                         method=method)
         self.setUpMock()
+        
+        
+class LoggingTests( RunTasksBaseTest ):
+    
+    FILENAME = 'test-TaskQueueFSMTests.yaml'
+    
+    def setUp(self):
+        super(LoggingTests, self).setUp()
+        self.context.initialize()
+        
+    def test_FantasmInstance(self):
+        self.assertEqual(1, _FantasmInstance.all().count())
+        
+    def _test_FantasmLog(self, level, logger):
+        self.assertEqual(1, _FantasmInstance.all().count())
+        logger("message: %s", "foo", exc_info=True)
+        runQueuedTasks(queueName=self.context.queueName)
+        query = _FantasmLog.all().filter("level =", level)
+        self.assertEqual(1, query.count())
+        self.assertEqual("message: foo", query.get().message)
+        
+    def test_FantasmLog_DEBUG(self):
+        self._test_FantasmLog(logging.DEBUG, self.context.logger.debug)
+
+    def test_FantasmLog_INFO(self):
+        self._test_FantasmLog(logging.INFO, self.context.logger.info)
+        
+    def test_FantasmLog_WARNING(self):
+        self._test_FantasmLog(logging.WARNING, self.context.logger.warning)
+        
+    def test_FantasmLog_ERROR(self):
+        self._test_FantasmLog(logging.ERROR, self.context.logger.error)
+        
+    def test_FantasmLog_CRITICAL(self):
+        self._test_FantasmLog(logging.CRITICAL, self.context.logger.critical)
+        
+    def test_FantasmInstance_stack(self):
+        self.context.logger.critical("message", exc_info=1)
+        runQueuedTasks(queueName=self.context.queueName)
+        log = _FantasmLog.all().get()
+        self.assertEqual("message", log.message)
+        self.assertEqual("None\n", log.stack)
+        
+    def test_FantasmInstance_stack(self):
+        try:
+            list()[0]
+        except Exception:
+            self.context.logger.critical("message", exc_info=1)
+        runQueuedTasks(queueName=self.context.queueName)
+        log = _FantasmLog.all().get()
+        self.assertEqual("message", log.message)
+        self.assertTrue("Traceback" in log.stack and "IndexError" in log.stack)
         
 class ParamsTests(RunTasksBaseTest):
     

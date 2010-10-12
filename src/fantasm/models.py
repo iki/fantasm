@@ -85,3 +85,17 @@ class _FantasmFanIn( db.Model ):
     """ A model used to store FSMContexts for fan in """
     workIndex = db.StringProperty()
     context = JSONProperty(indexed=False)
+    
+class _FantasmInstance( db.Model ):
+    """ A model used to to store FSMContext instances """
+    instanceName = db.StringProperty()
+    createdTime = db.DateTimeProperty(auto_now_add=True)
+    
+class _FantasmLog( db.Model ):
+    """ A model used to store log messages """
+    instanceName = db.StringProperty()
+    time = db.DateTimeProperty()
+    level = db.IntegerProperty()
+    message = db.TextProperty()
+    stack = db.TextProperty()
+    tags = db.StringListProperty()

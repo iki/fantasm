@@ -18,6 +18,7 @@ Copyright 2010 VendAsta Technologies Inc.
 """
 
 import time
+from google.appengine.ext import deferred
 from google.appengine.ext import webapp
 from google.appengine.api.capabilities import CapabilitySet
 from fantasm import config, constants
@@ -57,6 +58,12 @@ def getMachineConfig(request):
         return machineConfig
     except KeyError:
         raise UnknownMachineError(machineName)
+
+class FSMLogHandler(webapp.RequestHandler):
+    """ The handler used for logging """
+    def post(self):
+        """ Runs the serialized function """
+        deferred.run(self.request.body)
 
 class FSMGraphvizHandler(webapp.RequestHandler):
     """ The hander to output graphviz diagram of the finite state machine. """
@@ -159,6 +166,8 @@ class FSMHandler(webapp.RequestHandler):
         else:
             
             obj = TemporaryStateObject()
+            # the case of headers is inconsistent on dev_appserver and appengine
+            # ie 'X-AppEngine-TaskRetryCount' vs. 'X-AppEngine-Taskretrycount'
             lowerCaseHeaders = dict([(key.lower(), value) for key, value in self.request.headers.items()])
             
             # add the retry counter into the machine context from the header

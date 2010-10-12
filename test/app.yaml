@@ -6,6 +6,8 @@ api_version: 1
 handlers:
 - url: /fantasm/.*
   script: fantasm/main.py
+  login: admin
 
 - url: .*
   script: main.py
+  login: admin

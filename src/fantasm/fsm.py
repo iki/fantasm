@@ -41,11 +41,12 @@ from google.appengine.api.labs.taskqueue.taskqueue import Task, Queue, TaskAlrea
 from google.appengine.ext import db
 from google.appengine.api import memcache
 from fantasm import constants, config
+from fantasm.log import Logger
 from fantasm.state import State
 from fantasm.transition import Transition
 from fantasm.exceptions import UnknownEventError, UnknownStateError, UnknownMachineError, \
                                FanInWriteLockFailureRuntimeError, FanInReadLockFailureRuntimeError
-from fantasm.models import _FantasmFanIn
+from fantasm.models import _FantasmFanIn, _FantasmInstance
 from fantasm import models
 from fantasm.utils import knuthHash
 
@@ -270,6 +271,7 @@ class FSMContext(dict):
         self.contextTypes = constants.PARAM_TYPES.copy()
         if contextTypes:
             self.contextTypes.update(contextTypes)
+        self.logger = Logger(self)
         
     def _generateUniqueInstanceName(self):
         """ Generates a unique instance name for this machine. 
@@ -336,6 +338,7 @@ class FSMContext(dict):
         self[constants.STEPS_PARAM] = 0
         task = self.generateInitializationTask()
         Queue(name=self.queueName).add(task)
+        _FantasmInstance(key_name=self.instanceName, instanceName=self.instanceName).put()
         
         return FSM.PSEUDO_INIT
         
@@ -393,6 +396,7 @@ class FSMContext(dict):
                     self.queueDispatch(FSM.PSEUDO_FINAL)
                     
         except Exception:
+            self.logger.exception("FSMContext.dispatch is handling the following exception:")
             self._handleException(event, obj)
             
         return nextEvent
@@ -616,8 +620,15 @@ class FSMContext(dict):
                 db.delete(fanInResults[i:i+maxDeleteSize])
                 i += maxDeleteSize
                 
-            # an return the FSMContexts
-            return contexts
+            # and return the FSMContexts list
+            class FSMContextList(list):
+                """ A list that supports .logger.info(), .logger.warning() etc.for fan-in actions """
+                def __init__(self, context, contexts):
+                    """ setup a self.logger for fan-in actions """
+                    super(FSMContextList, self).__init__(contexts)
+                    self.logger = Logger(context)
+                
+            return FSMContextList(self, contexts)
         
         finally:
             deleted = memcache.delete(readlock)

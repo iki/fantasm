@@ -41,6 +41,7 @@ def createApplication():
     return webapp.WSGIApplication([
         (r"^/[^\/]+/graphviz/.+", handlers.FSMGraphvizHandler),
         (r"^/[^\/]+/fsm/.+", handlers.FSMHandler),
+        (r"^/[^\/]+/log/", handlers.FSMLogHandler),
     ],
     debug=True)
 
