@@ -10,7 +10,7 @@ from google.appengine.api import memcache # pylint: disable-msg=W0611
 from google.appengine.ext import db
 from fantasm import config
 from fantasm.handlers import TemporaryStateObject
-from fantasm.fsm import FSMContext, FSM, spawn
+from fantasm.fsm import FSMContext, FSM
 from fantasm.transition import Transition
 from fantasm.exceptions import UnknownMachineError, UnknownStateError, UnknownEventError, \
                                FanInWriteLockFailureRuntimeError, FanInReadLockFailureRuntimeError, \
@@ -698,29 +698,30 @@ class SpawnTests(unittest.TestCase):
         restore()
     
     def test_spawnWithNoContextDoesNotQueueAnything(self):
-        spawn(self.machineName, None, currentConfig=self.currentConfig)
+        self.context.spawn(self.machineName, None, currentConfig=self.currentConfig)
         self.assertEquals(len(self.mockQueue.tasks), 0)
         
     def test_spawnWithOneContextQueuesOne(self):
-        spawn(self.machineName, {'a': '1'}, currentConfig=self.currentConfig)
+        self.context.spawn(self.machineName, {'a': '1'}, currentConfig=self.currentConfig)
         self.assertEquals(len(self.mockQueue.tasks), 1)
         
     def test_spawnWithTwoContextsQueuesTwo(self):
-        spawn(self.machineName, [{'a': '1'}, {'b': '2'}], currentConfig=self.currentConfig)
+        self.context.spawn(self.machineName, [{'a': '1'}, {'b': '2'}], currentConfig=self.currentConfig)
         self.assertEquals(len(self.mockQueue.tasks), 2)
         
     def test_spawnUsesCorrectUrl(self):
-        spawn(self.machineName, [{'a': '1'}, {'b': '2'}], currentConfig=self.currentConfig)
+        self.context.spawn(self.machineName, [{'a': '1'}, {'b': '2'}], currentConfig=self.currentConfig)
         self.assertTrue(self.mockQueue.tasks[0][0].url.startswith('/fantasm/fsm/%s' % self.machineName))
         self.assertTrue(self.mockQueue.tasks[1][0].url.startswith('/fantasm/fsm/%s' % self.machineName))
         
     def test_contextAreIncludedInTasks(self):
-        spawn(self.machineName, [{'a': '1'}, {'b': '2'}], currentConfig=self.currentConfig)
+        self.context.spawn(self.machineName, [{'a': '1'}, {'b': '2'}], currentConfig=self.currentConfig,
+                           method='GET')
         self.assertTrue('a=1' in self.mockQueue.tasks[0][0].url)
         self.assertTrue('b=2' in self.mockQueue.tasks[1][0].url)
 
     def test_countdownIsIncludedInTask(self):
         # having trouble mocking Task, so I'll dip into a private attribute right on task
         import time
-        spawn(self.machineName, {'a': '1'}, countdown=20, currentConfig=self.currentConfig)
+        self.context.spawn(self.machineName, {'a': '1'}, countdown=20, currentConfig=self.currentConfig)
         self.assertTrue(time.time()+20 - getattr(self.mockQueue.tasks[0][0], '_Task__eta_posix') < 0.01)

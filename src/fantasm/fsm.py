@@ -220,27 +220,6 @@ class FSM(object):
                           data=data, contextTypes=machineConfig.contextTypes,
                           method=method)
 
-def spawn(machineName, contexts, countdown=0, currentConfig=None, method='GET'):
-    """ Spawns new machines.
-    
-    @param machineName the machine to spawn
-    @param contexts a list of contexts (dictionaries) to spawn the new machine(s) with; multiple contexts will spawn
-                    multiple machines
-    @param countdown the countdown (in seconds) to wait before spawning machines
-    @param currentConfig test injection for configuration
-    """
-    if not contexts:
-        return
-    if not isinstance(contexts, (types.ListType, types.TupleType)):
-        contexts = [contexts]
-    for context in contexts:
-        context[constants.STEPS_PARAM] = 0
-    fsm = FSM(currentConfig=currentConfig)
-    instances = [fsm.createFSMInstance(machineName, data=context, method=method) for context in contexts]
-    tasks = [instance.generateInitializationTask(countdown=countdown) for instance in instances]
-    queueName = instances[0].queueName # same machineName, same queues
-    Queue(name=queueName).add(tasks)
-
 class FSMContext(dict):
     """ A finite state machine context instance. """
     
@@ -326,6 +305,28 @@ class FSMContext(dict):
         data = copy.copy(data) or {}
         data[constants.FORK_PARAM] = len(forkedContexts)
         forkedContexts.append(self.clone(data=data))
+    
+    def spawn(self, machineName, contexts, countdown=0, method='POST', currentConfig=None):
+        """ Spawns new machines.
+        
+        @param machineName the machine to spawn
+        @param contexts a list of contexts (dictionaries) to spawn the new machine(s) with; multiple contexts will spawn
+                        multiple machines
+        @param countdown the countdown (in seconds) to wait before spawning machines
+        @param method the method ('GET' or 'POST') to invoke the machine with (default: POST)
+        @param currentConfig test injection for configuration
+        """
+        if not contexts:
+            return
+        if not isinstance(contexts, (types.ListType, types.TupleType)):
+            contexts = [contexts]
+        for context in contexts:
+            context[constants.STEPS_PARAM] = 0
+        fsm = FSM(currentConfig=currentConfig)
+        instances = [fsm.createFSMInstance(machineName, data=context, method=method) for context in contexts]
+        tasks = [instance.generateInitializationTask(countdown=countdown) for instance in instances]
+        queueName = instances[0].queueName # same machineName, same queues
+        Queue(name=queueName).add(tasks)
     
     def initialize(self):
         """ Initializes the FSMContext. Queues a Task (so that we can benefit from auto-retry) to dispatch
