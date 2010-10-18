@@ -70,10 +70,9 @@ class SelectBackup(FSMAction):
         
         # spawn the DeleteBackup machine
         if DELETE_BACKUPS_OLDER_THAN_DAYS > 0:
-            spawn('DeleteBackup', 
-                  {'daysOld': DELETE_BACKUPS_OLDER_THAN_DAYS}, 
-                  method='POST', 
-                  countdown=DELETE_BACKUP_DELAY_IN_SECONDS)
+            context.spawn('DeleteBackup', 
+                          {'daysOld': DELETE_BACKUPS_OLDER_THAN_DAYS}, 
+                          countdown=DELETE_BACKUP_DELAY_IN_SECONDS)
         
         return 'ok'
         

@@ -1,0 +1,24 @@
+
+state_machines:
+  
+  - name: FSMContextTests
+    namespace: fantasm_tests.actions
+  
+    states:
+      
+    - name: foo
+      action: CountExecuteCalls
+      initial: True
+      transitions:
+      - event: next-event
+        to: foo2
+          
+    - name: foo2
+      action: CountExecuteCallsWithFork
+      transitions:
+      - event: next-event
+        to: foo3
+        
+    - name: foo3
+      action: CountExecuteCalls
+      final: True

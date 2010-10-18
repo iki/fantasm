@@ -10,7 +10,7 @@ from google.appengine.api import memcache # pylint: disable-msg=W0611
 from google.appengine.ext import db
 from fantasm import config
 from fantasm.handlers import TemporaryStateObject
-from fantasm.fsm import FSMContext, FSM
+from fantasm.fsm import FSMContext, FSM, startStateMachine
 from fantasm.transition import Transition
 from fantasm.exceptions import UnknownMachineError, UnknownStateError, UnknownEventError, \
                                FanInWriteLockFailureRuntimeError, FanInReadLockFailureRuntimeError, \
@@ -19,7 +19,7 @@ from fantasm.state import State
 from fantasm.models import _FantasmFanIn
 from fantasm.constants import STATE_PARAM, EVENT_PARAM, INSTANCE_NAME_PARAM, STEPS_PARAM, MACHINE_STATES_ATTRIBUTE, \
                               CONTINUATION_PARAM, INDEX_PARAM, GEN_PARAM, FORKED_CONTEXTS_PARAM, \
-                              FORK_PARAM
+                              FORK_PARAM, TASK_NAME_PARAM
 from fantasm_tests.fixtures import AppEngineTestCase
 from fantasm_tests.actions import RaiseExceptionAction, RaiseExceptionContinuationAction
 from fantasm_tests.helpers import TaskQueueDouble, getLoggingDouble
@@ -85,13 +85,26 @@ class FSMContextTests(unittest.TestCase):
     
     def setUp(self):
         super(FSMContextTests, self).setUp()
-        self.state = State('foo', None, CountExecuteCalls(), None)
-        self.state2 = State('foo2', None, CountExecuteCallsWithFork(), None)
-        self.state.addTransition(Transition('t1', self.state2), 'event')
-        self.state3 = State('foo3', None, None, None)
-        self.state2.addTransition(Transition('t2', self.state3), 'event')
-        self.context = FSMContext(self.state, machineName='machineName')
-        self.machineName = self.context.machineName
+        filename = 'test-FSMContextTests.yaml'
+        setUpByFilename(self, filename)
+        self.machineName = getMachineNameByFilename(filename)
+        self.mockQueue = TaskQueueDouble()
+        mock(name='Queue.add', returns_func=self.mockQueue.add, tracker=None)
+        # dispatch initial event to get context in correct state
+        self.taskName = 'foo'
+        self.obj = {TASK_NAME_PARAM: self.taskName}
+        self.context.dispatch(FSM.PSEUDO_INIT, self.obj)
+        
+    def tearDown(self):
+        super(FSMContextTests, self).tearDown()
+        restore()
+        
+    def getContextWithoutSpecialEntries(self):
+        context = self.context.clone()
+        for key in context.keys():
+            if key.startswith('__') and key.endswith('__'):
+                context.pop(key)
+        return context
 
     def test_contextValueSet(self):
         self.context['foo'] = 'bar'
@@ -115,39 +128,43 @@ class FSMContextTests(unittest.TestCase):
         
     def test_generatedContextNameIsUnique(self):
         instanceName1 = self.context.instanceName
-        context2 = FSMContext({self.state.name : self.state}, self.state)
+        state = State('foo', None, CountExecuteCalls(), None)
+        context2 = FSMContext({state.name : state}, state)
         instanceName2 = context2.instanceName
         self.assertNotEquals(instanceName1, instanceName2)
         
     def test_clone(self):
         self.context['foo'] = 'bar'
-        clone = self.context.clone()
-        self.assertEqual({'foo': 'bar'}, self.context)
+        clone = self.getContextWithoutSpecialEntries().clone()
+        self.assertEqual({'foo': 'bar'}, self.getContextWithoutSpecialEntries())
         self.assertEqual({'foo': 'bar'}, clone)
         self.assertEqual(self.context.instanceName, clone.instanceName)
         
         self.context['bar'] = 'foo'
-        self.assertEqual({'foo': 'bar', 'bar': 'foo'}, self.context)
+        self.assertEqual({'foo': 'bar', 'bar': 'foo'}, self.getContextWithoutSpecialEntries())
         self.assertEqual({'foo': 'bar'}, clone)
         self.assertEqual(self.context.instanceName, clone.instanceName)
         
     def test_clone_data(self):
         self.context['foo'] = 'bar'
-        clone = self.context.clone(data={'abc': '123'})
+        clone = self.getContextWithoutSpecialEntries().clone(data={'abc': '123'})
         self.assertEqual({'foo': 'bar', 'abc': '123'}, clone)
         
     def test_clone_instanceName(self):
         self.context['foo'] = 'bar'
-        clone = self.context.clone(instanceName='foo')
+        clone = self.getContextWithoutSpecialEntries().clone(instanceName='foo')
         self.assertEqual({'foo': 'bar'}, clone)
         self.assertNotEqual(self.context.instanceName, clone.instanceName)
         
     def test_fork(self):
-        obj = {}
-        self.context.fork(obj)
-        self.assertEqual({FORKED_CONTEXTS_PARAM: [{FORK_PARAM: 0}]}, obj)
-        self.context.fork(obj)
-        self.assertEqual({FORKED_CONTEXTS_PARAM: [{FORK_PARAM: 0}, {FORK_PARAM: 1}]}, obj)
+        self.context.fork()
+        self.assertTrue(FORKED_CONTEXTS_PARAM in self.obj)
+        self.assertEquals(len(self.obj[FORKED_CONTEXTS_PARAM]), 1)
+        self.assertEquals(self.obj[FORKED_CONTEXTS_PARAM][0][FORK_PARAM], 0)
+        self.context.fork()
+        self.assertEquals(len(self.obj[FORKED_CONTEXTS_PARAM]), 2)
+        self.assertEquals(self.obj[FORKED_CONTEXTS_PARAM][0][FORK_PARAM], 0)
+        self.assertEquals(self.obj[FORKED_CONTEXTS_PARAM][1][FORK_PARAM], 1)
         
 class FSMContextMergeJoinTests(AppEngineTestCase):
     
@@ -692,36 +709,118 @@ class SpawnTests(unittest.TestCase):
         self.machineName = getMachineNameByFilename(filename)
         self.mockQueue = TaskQueueDouble()
         mock(name='Queue.add', returns_func=self.mockQueue.add, tracker=None)
+        # dispatch initial event to get context in correct state
+        self.taskName = 'foo'
+        self.obj = {TASK_NAME_PARAM: self.taskName}
+        self.context.dispatch(FSM.PSEUDO_INIT, self.obj)
+        # but now flush the task queue to remove the event that we just dispatched;
+        # we're only interested in testing spawn tasks
+        self.mockQueue.purge()
         
     def tearDown(self):
         super(SpawnTests, self).tearDown()
         restore()
+        
+    def getTask(self, num):
+        """ Retrieves a queued task from mock queue. """
+        return self.mockQueue.tasks[num][0]
     
     def test_spawnWithNoContextDoesNotQueueAnything(self):
-        self.context.spawn(self.machineName, None, currentConfig=self.currentConfig)
+        self.context.spawn(self.machineName, None, _currentConfig=self.currentConfig)
         self.assertEquals(len(self.mockQueue.tasks), 0)
         
     def test_spawnWithOneContextQueuesOne(self):
-        self.context.spawn(self.machineName, {'a': '1'}, currentConfig=self.currentConfig)
+        self.context.spawn(self.machineName, {'a': '1'}, _currentConfig=self.currentConfig)
         self.assertEquals(len(self.mockQueue.tasks), 1)
         
     def test_spawnWithTwoContextsQueuesTwo(self):
-        self.context.spawn(self.machineName, [{'a': '1'}, {'b': '2'}], currentConfig=self.currentConfig)
+        self.context.spawn(self.machineName, [{'a': '1'}, {'b': '2'}], _currentConfig=self.currentConfig)
         self.assertEquals(len(self.mockQueue.tasks), 2)
         
     def test_spawnUsesCorrectUrl(self):
-        self.context.spawn(self.machineName, [{'a': '1'}, {'b': '2'}], currentConfig=self.currentConfig)
-        self.assertTrue(self.mockQueue.tasks[0][0].url.startswith('/fantasm/fsm/%s' % self.machineName))
-        self.assertTrue(self.mockQueue.tasks[1][0].url.startswith('/fantasm/fsm/%s' % self.machineName))
+        self.context.spawn(self.machineName, [{'a': '1'}, {'b': '2'}], _currentConfig=self.currentConfig)
+        self.assertTrue(self.getTask(0).url.startswith('/fantasm/fsm/%s/' % self.machineName))
+        self.assertTrue(self.getTask(1).url.startswith('/fantasm/fsm/%s/' % self.machineName))
         
     def test_contextAreIncludedInTasks(self):
-        self.context.spawn(self.machineName, [{'a': '1'}, {'b': '2'}], currentConfig=self.currentConfig,
+        self.context.spawn(self.machineName, [{'a': '1'}, {'b': '2'}], _currentConfig=self.currentConfig,
                            method='GET')
-        self.assertTrue('a=1' in self.mockQueue.tasks[0][0].url)
-        self.assertTrue('b=2' in self.mockQueue.tasks[1][0].url)
+        self.assertTrue('a=1' in self.getTask(0).url)
+        self.assertTrue('b=2' in self.getTask(1).url)
 
     def test_countdownIsIncludedInTask(self):
         # having trouble mocking Task, so I'll dip into a private attribute right on task
         import time
-        self.context.spawn(self.machineName, {'a': '1'}, countdown=20, currentConfig=self.currentConfig)
+        self.context.spawn(self.machineName, {'a': '1'}, countdown=20, _currentConfig=self.currentConfig)
         self.assertTrue(time.time()+20 - getattr(self.mockQueue.tasks[0][0], '_Task__eta_posix') < 0.01)
+        
+    def test_spawnIsIdempotent(self):
+        self.context.spawn(self.machineName, {'a': '1'}, _currentConfig=self.currentConfig)
+        self.assertEquals(len(self.mockQueue.tasks), 1)
+        self.context.spawn(self.machineName, {'a': '1'}, _currentConfig=self.currentConfig)
+        self.assertEquals(len(self.mockQueue.tasks), 1)
+        
+class StartStateMachineTests(unittest.TestCase):
+    """ Tests for startStateMachine """
+    
+    def setUp(self):
+        super(StartStateMachineTests, self).setUp()
+        filename = 'test-TaskQueueFSMTests.yaml'
+        setUpByFilename(self, filename)
+        self.machineName = getMachineNameByFilename(filename)
+        self.mockQueue = TaskQueueDouble()
+        mock(name='Queue.add', returns_func=self.mockQueue.add, tracker=None)
+        
+    def tearDown(self):
+        super(StartStateMachineTests, self).tearDown()
+        restore()
+    
+    def getTask(self, num):
+        """ Retrieves a queued task from mock queue. """
+        return self.mockQueue.tasks[num][0]
+
+    def test_taskEnqueuedToStartSingleMachine(self):
+        startStateMachine(self.machineName, {'a': '1'}, _currentConfig=self.currentConfig)
+        self.assertEquals(len(self.mockQueue.tasks), 1)
+        
+    def test_tasksEnqueuedToStartMultipleMachines(self):
+        startStateMachine(self.machineName, [{'a': '1'}, {'b': '2'}, {'c': '3'}], _currentConfig=self.currentConfig)
+        self.assertEquals(len(self.mockQueue.tasks), 3)
+        
+    def test_contextsAddedToTasks(self):
+        startStateMachine(self.machineName, [{'a': '1'}, {'b': '2'}], _currentConfig=self.currentConfig,
+                          method='GET')
+        self.assertTrue('a=1' in self.getTask(0).url)
+        self.assertTrue('b=2' in self.getTask(1).url)
+        
+    def test_correctMethodUsedToEnqueueTask(self):
+        startStateMachine(self.machineName, {'a': '1'}, _currentConfig=self.currentConfig, method='GET')
+        self.assertEquals(self.getTask(0).method, 'GET')
+    
+    def test_correctUrlInTask(self):
+        startStateMachine(self.machineName, {'a': '1'}, _currentConfig=self.currentConfig, method='POST')
+        self.assertEquals(self.getTask(0).url, '/fantasm/fsm/%s/' % self.machineName)
+        
+    def test_countdownIncludedInTask(self):
+        # having trouble mocking Task, so I'll dip into a private attribute right on task
+        import time
+        startStateMachine(self.machineName, {'a': '1'}, countdown=20, _currentConfig=self.currentConfig)
+        self.assertTrue(time.time()+20 - getattr(self.mockQueue.tasks[0][0], '_Task__eta_posix') < 0.01)
+        
+    def test_taskNameIsUsedWhenQueuingTasks(self):
+        startStateMachine(self.machineName, {'a': '1'}, _currentConfig=self.currentConfig, taskName='foo')
+        self.assertTrue(self.getTask(0).name.startswith('foo'))
+        
+    def test_uniqueTaskNamesGeneratedForMultipleContexts(self):
+        startStateMachine(self.machineName, [{'a': '1'}, {'b': '2'}], _currentConfig=self.currentConfig, 
+                          taskName='foo')
+        self.assertTrue(self.getTask(0).name.startswith('foo'))
+        self.assertTrue(self.getTask(1).name.startswith('foo'))
+        self.assertTrue(self.getTask(0).name.endswith('0'))
+        self.assertTrue(self.getTask(1).name.endswith('1'))
+
+    def test_startStateMachineIsIdempotent(self):
+        startStateMachine(self.machineName, {'a': '1'}, _currentConfig=self.currentConfig, taskName='foo')
+        self.assertEquals(len(self.mockQueue.tasks), 1)
+        startStateMachine(self.machineName, {'a': '1'}, _currentConfig=self.currentConfig, taskName='foo')
+        self.assertEquals(len(self.mockQueue.tasks), 1)

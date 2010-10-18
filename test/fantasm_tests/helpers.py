@@ -43,12 +43,13 @@ class TaskQueueDouble(object):
         self.name = name
         
     def add(self, task_or_tasks, transactional=False):
-        """ mock for google.appengine.api.labs.taskquque.add """
+        """ mock for google.appengine.api.labs.taskqueue.add """
         if isinstance(task_or_tasks, list):
             tasks = task_or_tasks
             for task in tasks:
                 if task.name in self.tasknames:
                     raise TaskAlreadyExistsError()
+                self.tasknames.add(task.name)
             self.tasks.extend([(task, transactional) for task in tasks])
         else:
             task = task_or_tasks

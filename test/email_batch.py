@@ -27,7 +27,7 @@ class StartBatch(object):
         logging.info('Added a new email batch. ID %d, expected %d.', batch.key().id(), expected)
         
         # kick off the validation machine (in the future)
-        fantasm.spawn('ValidateEmailBatch', {'batch-key': context['batch-key']}, countdown=30*60)
+        context.spawn('ValidateEmailBatch', {'batch-key': context['batch-key']}, countdown=30*60)
         
         return 'next'
         

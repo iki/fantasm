@@ -38,8 +38,8 @@ class CountExecuteCallsWithFork(object):
         if self.fails:
             self.fails -= 1
             raise Exception()
-        context.fork(obj)
-        context.fork(obj)
+        context.fork()
+        context.fork()
         return self.event
     @property
     def event(self):
@@ -240,7 +240,7 @@ class TestContinuationAndForkFSMAction(DatastoreContinuationFSMAction):
         
         # fork a machine to deal with all but one of the continuation dataset
         for result in obj.results[1:]:
-            context.fork(obj, data={'key': result.key()})
+            context.fork(data={'key': result.key()})
             
         # and deal with the leftover data item
         context['key'] = obj.result.key()

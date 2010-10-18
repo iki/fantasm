@@ -36,6 +36,7 @@ import random
 import copy
 import time
 import types
+import uuid
 from django.utils import simplejson
 from google.appengine.api.labs.taskqueue.taskqueue import Task, Queue, TaskAlreadyExistsError, TombstonedTaskError
 from google.appengine.ext import db
@@ -251,6 +252,7 @@ class FSMContext(dict):
         if contextTypes:
             self.contextTypes.update(contextTypes)
         self.logger = Logger(self)
+        self.__obj = None
         
     def _generateUniqueInstanceName(self):
         """ Generates a unique instance name for this machine. 
@@ -278,27 +280,26 @@ class FSMContext(dict):
         # update the context
         self[key] = value
         
-    def generateInitializationTask(self, countdown=0):
+    def generateInitializationTask(self, countdown=0, taskName=None):
         """ Generates a task for initializing the machine. """
         assert self.currentState.name == FSM.PSEUDO_INIT
         
         url = self.buildUrl(self.currentState.name, FSM.PSEUDO_INIT)
         params = self.buildParams(self.currentState.name, FSM.PSEUDO_INIT)
-        taskName = self.getTaskName(FSM.PSEUDO_INIT)
+        taskName = taskName or self.getTaskName(FSM.PSEUDO_INIT)
         task = Task(name=taskName, method=self.method, url=url, params=params, countdown=countdown)
         return task
     
-    def fork(self, obj, data=None):
+    def fork(self, data=None):
         """ Forks the FSMContext. 
         
         When an FSMContext is forked, an identical copy of the finite state machine is generated
         that will have the same event dispatched to it as the machine that called .fork(). The data
         parameter is useful for allowing each forked instance to operate on a different bit of data.
         
-        @param obj: @param obj: an object that the FSMContext can operate on  (as per .dispatch())
         @param data: an option mapping of data to apply to the forked FSMContext 
-        
         """
+        obj = self.__obj
         if obj.get(constants.FORKED_CONTEXTS_PARAM) is None:
             obj[constants.FORKED_CONTEXTS_PARAM] = []
         forkedContexts = obj.get(constants.FORKED_CONTEXTS_PARAM)
@@ -306,7 +307,8 @@ class FSMContext(dict):
         data[constants.FORK_PARAM] = len(forkedContexts)
         forkedContexts.append(self.clone(data=data))
     
-    def spawn(self, machineName, contexts, countdown=0, method='POST', currentConfig=None):
+    def spawn(self, machineName, contexts, countdown=0, method='POST', 
+              _currentConfig=None):
         """ Spawns new machines.
         
         @param machineName the machine to spawn
@@ -314,19 +316,13 @@ class FSMContext(dict):
                         multiple machines
         @param countdown the countdown (in seconds) to wait before spawning machines
         @param method the method ('GET' or 'POST') to invoke the machine with (default: POST)
-        @param currentConfig test injection for configuration
+        
+        @param _currentConfig test injection for configuration
         """
-        if not contexts:
-            return
-        if not isinstance(contexts, (types.ListType, types.TupleType)):
-            contexts = [contexts]
-        for context in contexts:
-            context[constants.STEPS_PARAM] = 0
-        fsm = FSM(currentConfig=currentConfig)
-        instances = [fsm.createFSMInstance(machineName, data=context, method=method) for context in contexts]
-        tasks = [instance.generateInitializationTask(countdown=countdown) for instance in instances]
-        queueName = instances[0].queueName # same machineName, same queues
-        Queue(name=queueName).add(tasks)
+        # using the current task name as a root to startStateMachine will make this idempotent
+        taskName = self.__obj[constants.TASK_NAME_PARAM]
+        startStateMachine(machineName, contexts, taskName=taskName, method=method, countdown=countdown, 
+                          _currentConfig=_currentConfig)
     
     def initialize(self):
         """ Initializes the FSMContext. Queues a Task (so that we can benefit from auto-retry) to dispatch
@@ -350,6 +346,8 @@ class FSMContext(dict):
         @param obj: an object that the FSMContext can operate on  
         @return: an event string to dispatch to the FSMContext
         """
+        
+        self.__obj = obj # hold the obj object for use during this context
 
         # store the starting state and event for the handleEvent() method
         self.startingState = self.currentState
@@ -761,3 +759,46 @@ class FSMContext(dict):
         if data:
             context.update(data)
         return context
+
+def startStateMachine(machineName, contexts, taskName=None, method='POST', countdown=0,
+                      _currentConfig=None):
+    """ Starts a new machine(s), by simply queuing a task. 
+    
+    @param machineName the name of the machine in the FSM to start
+    @param contexts a list of contexts to start the machine with; a machine will be started for each context
+    @param taskName used for idempotency; will become the root of the task name for the actual task queued
+    @param method the HTTP methld (GET/POST) to run the machine with (default 'POST')
+    @param countdown the number of seconds into the future to start the machine (default 0 - immediately)
+    
+    @param _currentConfig used for test injection (default None - use fsm.yaml definitions)
+    """
+    if not contexts:
+        return
+    if not isinstance(contexts, list):
+        contexts = [contexts]
+        
+    # FIXME: I shouldn't have to do this.
+    for context in contexts:
+        context[constants.STEPS_PARAM] = 0
+        
+    fsm = FSM(currentConfig=_currentConfig) # loads the FSM definition
+    
+    instances = [fsm.createFSMInstance(machineName, data=context, method=method) for context in contexts]
+    
+    tasks = []
+    for i, instance in enumerate(instances):
+        if taskName:
+            tname = '%s--startStateMachine-%d' % (taskName, i)
+        else:
+            tname = str(uuid.uuid4()) # generate some random name if none provided
+        task = instance.generateInitializationTask(countdown=countdown, taskName=tname)
+        tasks.append(task)
+
+    queueName = instances[0].queueName # same machineName, same queues
+    try:
+        Queue(name=queueName).add(tasks)
+    except (TaskAlreadyExistsError, TombstonedTaskError):
+        # FIXME: what happens if _some_ of the tasks were previously enqueued?
+        # normal result for idempotency
+        logging.info('Unable to queue new machine %s with taskName %s as it has been previously enqueued.',
+                      machineName, taskName)
