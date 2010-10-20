@@ -35,8 +35,6 @@ import datetime
 import random
 import copy
 import time
-import types
-import uuid
 from django.utils import simplejson
 from google.appengine.api.labs.taskqueue.taskqueue import Task, Queue, TaskAlreadyExistsError, TombstonedTaskError
 from google.appengine.ext import db
@@ -787,10 +785,9 @@ def startStateMachine(machineName, contexts, taskName=None, method='POST', count
     
     tasks = []
     for i, instance in enumerate(instances):
+        tname = None
         if taskName:
             tname = '%s--startStateMachine-%d' % (taskName, i)
-        else:
-            tname = str(uuid.uuid4()) # generate some random name if none provided
         task = instance.generateInitializationTask(countdown=countdown, taskName=tname)
         tasks.append(task)
 

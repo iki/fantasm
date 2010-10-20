@@ -158,9 +158,9 @@ def runQueuedTasks(queueName='default'):
             if task['method'] == 'POST':
                 handler.request.body = base64.decodestring(task['body'])
             
+            handler.request.headers[random.choice(['X-AppEngine-TaskName', 
+                                                   'X-Appengine-Taskname'])] = task['name']
             if retries.get(task['name']):
-                handler.request.headers[random.choice(['X-AppEngine-TaskName', 
-                                                       'X-Appengine-Taskname'])] = task['name']
                 handler.request.headers[random.choice(['X-AppEngine-TaskRetryCount', 
                                                        'X-Appengine-Taskretrycount'])] = retries[task['name']]
             

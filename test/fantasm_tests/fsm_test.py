@@ -824,3 +824,14 @@ class StartStateMachineTests(unittest.TestCase):
         self.assertEquals(len(self.mockQueue.tasks), 1)
         startStateMachine(self.machineName, {'a': '1'}, _currentConfig=self.currentConfig, taskName='foo')
         self.assertEquals(len(self.mockQueue.tasks), 1)
+        
+    def test_tasksQueuedForStartStateMachineWithTaskName(self):
+        startStateMachine(self.machineName, [{'a': '1'}, {'b': '2'}], _currentConfig=self.currentConfig,
+                          taskName='foo')
+        self.assertEquals(len(self.mockQueue.tasks), 2)
+        self.assertNotEquals(self.getTask(0).name, self.getTask(1).name)
+        
+    def test_tasksQueuedForStartStateMachineWithNoTaskName(self):
+        startStateMachine(self.machineName, [{'a': '1'}, {'b': '2'}], _currentConfig=self.currentConfig)
+        self.assertEquals(len(self.mockQueue.tasks), 2)
+        self.assertNotEquals(self.getTask(0).name, self.getTask(1).name)

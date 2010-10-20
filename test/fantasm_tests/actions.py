@@ -27,7 +27,13 @@ class CountExecuteCalls(object):
     @property
     def event(self):
         return 'next-event'
-    
+        
+class CountExecuteCallsWithSpawn(CountExecuteCalls):
+    def execute(self, context, obj):
+        context.spawn('MachineToSpawn', [{'a': '1'}, {'b': '2'}])
+        super(CountExecuteCallsWithSpawn, self).execute(context, obj)
+        return None
+        
 class CountExecuteCallsWithFork(object):
     def __init__(self):
         self.count = 0

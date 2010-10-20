@@ -1,0 +1,26 @@
+
+state_machines:
+  
+  - name: SpawnTests
+    namespace: fantasm_tests.actions
+  
+    states:
+      
+    - name: SpawnTests-InitialState
+      entry: CountExecuteCalls
+      action: CountExecuteCallsWithSpawn
+      exit: CountExecuteCalls  
+      initial: True
+      final: True
+      
+  - name: MachineToSpawn
+    namespace: fantasm_tests.actions
+    
+    states:
+    
+    - name: MachineToSpawn-InitialState
+      entry: CountExecuteCalls
+      action: CountExecuteCallsFinal
+      exit: CountExecuteCalls
+      initial: True
+      final: True

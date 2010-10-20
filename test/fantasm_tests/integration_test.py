@@ -1027,3 +1027,26 @@ class FinalStateCanEmitEventTests(RunTasksBaseTest):
         self.assertEquals(1, counts['InitialState']['action'])
         self.assertEquals(1, counts['OptionalFinalState']['action'])
         self.assertEquals(1, counts['FinalState']['action'])
+
+class SpawnMachinesTests(RunTasksBaseTest):
+    
+    FILENAME = 'test-SpawnTests.yaml'
+    MACHINE_NAME = 'SpawnTests'
+    
+    def test_spawnKicksOffMachines(self):
+        self.context.initialize()
+        ran = runQueuedTasks(queueName=self.context.queueName)
+        counts = getCounts(self.machineConfig)
+        self.assertEqual({'SpawnTests-InitialState': {'entry': 1, 'action': 1, 'exit': 1}}, 
+                 getCounts(self.machineConfig))
+        self.assertTrue('instanceName--pseudo-init--pseudo-init--SpawnTests-InitialState--step-0' in ran)
+        self.assertTrue('instanceName--pseudo-init--pseudo-init--SpawnTests-InitialState--step-0--startStateMachine-0' in ran)
+        self.assertTrue('instanceName--pseudo-init--pseudo-init--SpawnTests-InitialState--step-0--startStateMachine-1' in ran)
+        self.assertTrue('instanceName--SpawnTests-InitialState--pseudo-final--pseudo-final--step-1' in ran)
+        self.assertEquals({'action': 1, 'entry': 1, 'exit': 1}, counts['SpawnTests-InitialState'])
+
+        # FIXME: counts only considers one machine and needs to be extended
+        # FIXME: spawned machines don't have an instrumented instanceName, so the tasks are difficult to compare
+        # u'MachineToSpawn-20101020035109-W579H8--MachineToSpawn-InitialState--pseudo-final--pseudo-final--step-1', 
+        # u'MachineToSpawn-20101020035109-GKQD74--MachineToSpawn-InitialState--pseudo-final--pseudo-final--step-1'
+        # self.assertEquals({'action': 1, 'entry': 1, 'exit': 1}, counts['MachineToSpawn-InitialState'])
