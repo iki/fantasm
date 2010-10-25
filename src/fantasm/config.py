@@ -284,16 +284,17 @@ class _StateConfig(object):
                 badAttributes.add(attribute)
         if badAttributes:
             raise exceptions.InvalidStateAttributeError(self.machineName, self.name, badAttributes)
+        
+        self.final = bool(stateDict.get(constants.STATE_FINAL_ATTRIBUTE, False))
 
         # state action
         actionName = stateDict.get(constants.STATE_ACTION_ATTRIBUTE)
-        if not actionName:
+        if not actionName and not self.final:
             raise exceptions.StateActionRequired(self.machineName, self.name)
             
         # state namespace, initial state flag, final state flag, continuation flag
         self.namespace = stateDict.get(constants.NAMESPACE_ATTRIBUTE, machine.namespace)
         self.initial = bool(stateDict.get(constants.STATE_INITIAL_ATTRIBUTE, False))
-        self.final = bool(stateDict.get(constants.STATE_FINAL_ATTRIBUTE, False))
         self.continuation = bool(stateDict.get(constants.STATE_CONTINUATION_ATTRIBUTE, False))
         
         # state fan_in
@@ -308,9 +309,13 @@ class _StateConfig(object):
             raise exceptions.FanInContinuationNotSupportedError(self.machineName, self.name)
         
         # state action
-        self.action = _resolveClass(actionName, self.namespace)()
-        if not hasattr(self.action, 'execute'):
-            raise exceptions.InvalidActionInterfaceError(self.machineName, self.name)
+        if stateDict.get(constants.STATE_ACTION_ATTRIBUTE):
+            self.action = _resolveClass(actionName, self.namespace)()
+            if not hasattr(self.action, 'execute'):
+                raise exceptions.InvalidActionInterfaceError(self.machineName, self.name)
+        else:
+            self.action = None
+        
         if self.continuation:
             if not hasattr(self.action, 'continuation'):
                 raise exceptions.InvalidContinuationInterfaceError(self.machineName, self.name)

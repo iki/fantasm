@@ -618,6 +618,60 @@ class TestYamlFileLocation(unittest.TestCase):
         configuration = config.loadYaml(filename=filename)
         self.assertEquals(len(configuration.machines), 1)
         
+        
+class TestStatesWithAndWithoutDoActions(unittest.TestCase):
+    
+    def _test(self, yamlString):
+        """ just tests that it can be built """
+        import StringIO, yaml
+        yamlFile = StringIO.StringIO()
+        yamlFile.write(yamlString)
+        yamlFile.seek(0)
+        configDict = yaml.load(yamlFile.read())
+        configuration = config.Configuration(configDict)
+    
+    def test_finalStateWithDoAction(self):
+        self._test(
+"""
+state_machines:
+- name: machineName
+  namespace: fantasm_tests.fsm_test
+  states:
+    - name: state1
+      entry: CountExecuteCalls
+      action: CountExecuteCalls
+      exit: CountExecuteCalls
+      initial: True
+      final: True
+""")
+        
+    def test_finalStateWithOutDoAction(self):
+        self._test(
+"""
+state_machines:
+- name: machineName
+  namespace: fantasm_tests.fsm_test
+  states:
+    - name: state1
+      entry: CountExecuteCalls
+      exit: CountExecuteCalls
+      initial: True
+      final: True
+""")
+        
+    def test_nonFinalStateWithOutDoAction(self):
+        self.assertRaises(exceptions.StateActionRequired, self._test,
+"""
+state_machines:
+- name: machineName
+  namespace: fantasm_tests.fsm_test
+  states:
+    - name: state1
+      entry: CountExecuteCalls
+      exit: CountExecuteCalls
+      initial: True
+""")
+        
 # class TestMachineConfigRetrieval(unittest.TestCase):
 #     
 #     def test_ensureMachineConfigIsCachedStatically(self):

@@ -61,6 +61,33 @@ state_machines:
       action: CountExecuteCallsFinal
       final: True
       
+- name: DatastoreFSMContinuationNoFinalAction
+  namespace: fantasm_tests.actions
+  states:
+    
+    - name: state-continuation
+      entry: CountExecuteCalls
+      action: TestDatastoreContinuationFSMAction
+      initial: True
+      final: True # query may return no results
+      continuation: True
+      transitions:
+        - event: next-event
+          to: state-fan-in
+      
+    - name: state-fan-in
+      entry: CountExecuteCallsFanInEntry
+      action: CountExecuteCallsFanIn
+      fan_in: 5
+      transitions:
+        - event: next-event
+          to: state-final
+      
+    - name: state-final
+      entry: CountExecuteCalls
+      exit: CountExecuteCalls # just testing that a pseudo-final event is dispatched
+      final: True
+      
 - name: DatastoreFSMContinuationFanInAndForkTests
   namespace: fantasm_tests.actions
   context_types:

@@ -30,6 +30,7 @@ class EntryAction1(FSMAction):
     def execute(self, context, obj):
         context.logger.info('EntryAction1.execute()')
         context['foo'] = 'bar'
+        context['unicode'] = u'\xe8'
         if 'failure' in context  and random.random() < 0.25:
             raise Exception('failure')
 

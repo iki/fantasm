@@ -667,6 +667,37 @@ class RunTasksTests_DatastoreFSMContinuationFanInTestsInitCont(RunTasksBaseTest)
 class RunTasksTests_DatastoreFSMContinuationFanInTestsInitCont_POST(
                                                             RunTasksTests_DatastoreFSMContinuationFanInTestsInitCont):
     METHOD = 'POST'
+    
+class RunTasksTests_DatastoreFSMContinuationNoFinalAction(RunTasksBaseTest):
+    
+    FILENAME = 'test-DatastoreFSMContinuationFanInTests.yaml'
+    MACHINE_NAME = 'DatastoreFSMContinuationNoFinalAction'
+        
+    def test_DatastoreFSMContinuationFanInTests(self):
+        # FIXME: this test is non-deterministic based on time.time in _queueDispatchFanIn
+        self.context.initialize() # queues the first task
+        ran = runQueuedTasks(queueName=self.context.queueName)
+        ran = [re.sub(r'^(.+fan-in--step-[0-9]+-)[0-9]+(-.+)$', r'\1###\2', r) for r in ran] # hard to mock it out
+        self.assertEqual(['instanceName--pseudo-init--pseudo-init--state-continuation--step-0', 
+                          'instanceName--continuation-0-1--pseudo-init--pseudo-init--state-continuation--step-0', 
+                          'instanceName--continuation-0-2--pseudo-init--pseudo-init--state-continuation--step-0', 
+                          'instanceName--continuation-0-3--pseudo-init--pseudo-init--state-continuation--step-0', 
+                          'instanceName--continuation-0-4--pseudo-init--pseudo-init--state-continuation--step-0', 
+                          'instanceName--continuation-0-5--pseudo-init--pseudo-init--state-continuation--step-0', 
+                          'instanceName--state-continuation--next-event--state-fan-in--step-1-###-1', 
+                          'instanceName--work-index-1--state-fan-in--next-event--state-final--step-2',
+                          'instanceName--work-index-1--state-final--pseudo-final--pseudo-final--step-3'], ran)
+        self.assertEqual({'state-continuation': {'entry': 6, 'action': 5, 'continuation': 6, 'exit': 0},
+                          'state-fan-in': {'entry': 1, 'action': 1, 'exit': 0, 
+                                           'fan-in-entry': 5, 'fan-in-action': 5, 'fan-in-exit': 0},
+                          'state-final': {'entry': 1, 'action': 0, 'exit': 1},
+                          'state-continuation--next-event': {'action': 0},
+                          'state-fan-in--next-event': {'action': 0}}, 
+                 getCounts(self.machineConfig))
+        
+class RunTasksTests_DatastoreFSMContinuationFanInTestsInitContNoFinalAction_POST(
+                                                                 RunTasksTests_DatastoreFSMContinuationNoFinalAction):
+    METHOD = 'POST'
         
 class RunTasksWithFailuresTests_TaskQueueFSMTests(RunTasksBaseTest):
     
