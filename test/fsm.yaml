@@ -80,7 +80,7 @@ state_machines:
   - name: update-counter
     action: UpdateCounter
     final: True
-    fan_in: 30
+    fan_in: 2
 
 - name: ValidateEmailBatch
   namespace: email_batch
@@ -125,7 +125,7 @@ state_machines:
   - name: state3
     entry: EntryAction3
     action: DoAction3
-    fan_in: 10
+    fan_in: 2
     transitions:
       - event: event3
         to: state4
