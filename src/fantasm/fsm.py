@@ -603,10 +603,12 @@ class FSMContext(dict):
                                  
             # iterate over the query to fetch results - this is done in 'small batches'
             fanInResults = list(query)
-            obj[constants.FAN_IN_RESULTS_PARAM] = fanInResults
             
             # construct a list of FSMContexts
             contexts = [self.clone(data=r.context) for r in fanInResults]
+
+            # hold the fanInResult around in case we need to re-put them (on an Exception)
+            obj[constants.FAN_IN_RESULTS_PARAM] = fanInResults
             
             # and delete the work packages - bearing in mind appengine limits
             maxDeleteSize = 250 # appengine does not like to delete > 500 models at a time, 250 is a nice safe number
