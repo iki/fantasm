@@ -371,7 +371,7 @@ class FSMContext(dict):
                         Queue(name=self.queueName).add(tasks)
                 
                 except (TaskAlreadyExistsError, TombstonedTaskError):
-                    # unlike a similar block in self.continutation, this should NOT happen
+                    # unlike a similar block in self.continutation, this is well off the happy path
                     logging.critical('Unable to queue fork Tasks %s as it/they already exists. (Machine %s, State %s)',
                                      [task.name for task in tasks if not task.was_enqueued],
                                      self.machineName, 
@@ -379,7 +379,22 @@ class FSMContext(dict):
                 
             if nextEvent:
                 self[constants.STEPS_PARAM] = int(self.get(constants.STEPS_PARAM, '0')) + 1
-                self.queueDispatch(nextEvent)
+                
+                try:
+                    self.queueDispatch(nextEvent)
+                    
+                except (TaskAlreadyExistsError, TombstonedTaskError):
+                    # unlike a similar block in self.continutation, this is well off the happy path
+                    #
+                    # FIXME: when this happens, it means there was failure shortly after queuing the Task, or
+                    #        possibly even with queuing the Task. when this happens there is a chance that 
+                    #        two states in the machine are executing simultaneously, which is may or may not
+                    #        be a good thing, depending on what each state does. gracefully handling this 
+                    #        exception at least means that this state will terminate.
+                    logging.critical('Unable to queue next Task as it already exists. (Machine %s, State %s)',
+                                     self.machineName, 
+                                     self.currentState.name)
+                    
             else:
                 # if we're not in a final state, emit a log message
                 # FIXME - somehow we should avoid this message if we're in the "last" step of a continuation...
@@ -426,6 +441,7 @@ class FSMContext(dict):
         except (TaskAlreadyExistsError, TombstonedTaskError):
             # this can happen when currentState.dispatch() previously succeeded in queueing the continuation
             # Task, but failed with the doAction.execute() call in a _previous_ execution of this Task.
+            # NOTE: this prevent the dreaded "fork bomb" 
             logging.info('Unable to queue continuation Task as it already exists. (Machine %s, State %s)',
                           self.machineName, 
                           self.currentState.name)
@@ -526,7 +542,7 @@ class FSMContext(dict):
                         eta=datetime.datetime.utcfromtimestamp(now) + datetime.timedelta(seconds=fanInPeriod))
             Queue(name=self.queueName).add(task)
             return task
-        except TaskAlreadyExistsError:
+        except (TaskAlreadyExistsError, TombstonedTaskError):
             pass # Fan-in magic
         finally:
             memcache.decr(lock)
@@ -585,12 +601,22 @@ class FSMContext(dict):
             added = memcache.add(readlock, actualTaskName, time=30) # FIXME: is 30s appropriate?
             lockValue = memcache.get(readlock)
             
+            # and return the FSMContexts list
+            class FSMContextList(list):
+                """ A list that supports .logger.info(), .logger.warning() etc.for fan-in actions """
+                def __init__(self, context, contexts):
+                    """ setup a self.logger for fan-in actions """
+                    super(FSMContextList, self).__init__(contexts)
+                    self.logger = Logger(context)
+                    self.instanceName = context.instanceName
+            
             # if the lock value is not equal to the added value, it means this task lost the race
             if not added or lockValue != actualTaskName:
-                raise FanInReadLockFailureRuntimeError(event, 
-                                                       self.machineName, 
-                                                       self.currentState.name, 
-                                                       self.instanceName)
+                return FSMContextList(self, [])
+#                raise FanInReadLockFailureRuntimeError(event, 
+#                                                       self.machineName, 
+#                                                       self.currentState.name, 
+#                                                       self.instanceName)
             
             # flag used in finally block to decide whether or not to log an error message
             haveReadLock = True
@@ -618,14 +644,6 @@ class FSMContext(dict):
             while fanInResults[i:i+maxDeleteSize]:
                 db.delete(fanInResults[i:i+maxDeleteSize])
                 i += maxDeleteSize
-                
-            # and return the FSMContexts list
-            class FSMContextList(list):
-                """ A list that supports .logger.info(), .logger.warning() etc.for fan-in actions """
-                def __init__(self, context, contexts):
-                    """ setup a self.logger for fan-in actions """
-                    super(FSMContextList, self).__init__(contexts)
-                    self.logger = Logger(context)
                 
             return FSMContextList(self, contexts)
         

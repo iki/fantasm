@@ -604,29 +604,29 @@ class DatastoreFSMContinuationFanInTests(DatastoreFSMContinuationBaseTests):
         # due to lock acquisition problems
         self.assertRaises(FanInWriteLockFailureRuntimeError, self.context.dispatch, event, obj)
         
-    def test_DatastoreFSMContinuationFanIn_race_on_work_delete(self):
-        event = self.context.initialize()
-        self.assertTrue(FSM.PSEUDO_INIT, self.context.currentState.name)
-        self.assertFalse(self.context.currentState.isContinuation)
-        
-        event = self.context.dispatch(event, TemporaryStateObject())
-        self.assertEqual('state-initial', self.context.currentState.name)
-        self.assertEqual(0, _FantasmFanIn.all().count())
-        
-        event = self.context.dispatch(event, TemporaryStateObject())
-        self.assertEqual('state-continuation', self.context.currentState.name)
-        self.assertEqual(1, _FantasmFanIn.all().count())
-        
-        writeLock = '%s-lock-%d' % (self.context.getTaskName(event, fanIn=True), self.context.get(INDEX_PARAM))
-        readLock = '%s-readlock-%d' % (self.context.getTaskName(event, fanIn=True), self.context.get(INDEX_PARAM))
-        def memcacheget(arg):
-            if arg == readLock:
-                return 'not-me'
-            return mocked[1][0](arg)
-        mock('memcache.get', returns_func=memcacheget, tracker=None)
-        
-        self.assertRaises(FanInReadLockFailureRuntimeError, self.context.dispatch, event, TemporaryStateObject())
-        self.assertEqual('state-continuation', self.context.currentState.name)
+#    def test_DatastoreFSMContinuationFanIn_race_on_work_delete(self):
+#        event = self.context.initialize()
+#        self.assertTrue(FSM.PSEUDO_INIT, self.context.currentState.name)
+#        self.assertFalse(self.context.currentState.isContinuation)
+#        
+#        event = self.context.dispatch(event, TemporaryStateObject())
+#        self.assertEqual('state-initial', self.context.currentState.name)
+#        self.assertEqual(0, _FantasmFanIn.all().count())
+#        
+#        event = self.context.dispatch(event, TemporaryStateObject())
+#        self.assertEqual('state-continuation', self.context.currentState.name)
+#        self.assertEqual(1, _FantasmFanIn.all().count())
+#        
+#        writeLock = '%s-lock-%d' % (self.context.getTaskName(event, fanIn=True), self.context.get(INDEX_PARAM))
+#        readLock = '%s-readlock-%d' % (self.context.getTaskName(event, fanIn=True), self.context.get(INDEX_PARAM))
+#        def memcacheget(arg):
+#            if arg == readLock:
+#                return 'not-me'
+#            return mocked[1][0](arg)
+#        mock('memcache.get', returns_func=memcacheget, tracker=None)
+#        
+#        self.assertRaises(FanInReadLockFailureRuntimeError, self.context.dispatch, event, TemporaryStateObject())
+#        self.assertEqual('state-continuation', self.context.currentState.name)
         
     def test_DatastoreFSMContinuationFanIn_work_packages_restored_on_exception(self):
         
