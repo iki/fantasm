@@ -18,14 +18,15 @@ Copyright 2010 VendAsta Technologies Inc.
 """
 
 import time
-from google.appengine.ext import deferred
-from google.appengine.ext import webapp
+import logging
+from google.appengine.ext import deferred, webapp, db
 from google.appengine.api.capabilities import CapabilitySet
 from fantasm import config, constants
 from fantasm.fsm import FSM
 from fantasm.constants import NON_CONTEXT_PARAMS, STATE_PARAM, EVENT_PARAM, INSTANCE_NAME_PARAM, TASK_NAME_PARAM, \
                               RETRY_COUNT_PARAM, STARTED_AT_PARAM
 from fantasm.exceptions import UnknownMachineError, RequiredServicesUnavailableRuntimeError
+from fantasm.models import _FantasmTaskSemaphore
 
 REQUIRED_SERVICES = ('memcache', 'datastore_v3', 'taskqueue')
 
@@ -99,12 +100,9 @@ class FSMHandler(webapp.RequestHandler):
     def post(self):
         """ Handles the POST request. """
         self.get_or_post(method='POST')
-    
+        
     def get_or_post(self, method='POST'):
         """ Handles the GET/POST request. """
-        
-        requestData = {'POST': self.request.POST, 'GET': self.request.GET}[method]
-        method = requestData.get('method') or method
         
         # ensure that we have our services for the next 30s (length of a single request)
         unavailable = set()
@@ -113,6 +111,26 @@ class FSMHandler(webapp.RequestHandler):
                 unavailable.add(service)
         if unavailable:
             raise RequiredServicesUnavailableRuntimeError(unavailable)
+        
+        # the case of headers is inconsistent on dev_appserver and appengine
+        # ie 'X-AppEngine-TaskRetryCount' vs. 'X-AppEngine-Taskretrycount'
+        lowerCaseHeaders = dict([(key.lower(), value) for key, value in self.request.headers.items()])
+
+        taskName = lowerCaseHeaders.get('x-appengine-taskname')
+        retryCount = int(lowerCaseHeaders.get('x-appengine-taskretrycount', 0))
+        
+        # Taskqueue can invoke multiple tasks of the same name occassionally. Here, we'll use
+        # a datastore transaction as a semaphore to determine if we should actually execute this or not.
+        if taskName:
+            firstExecution = db.run_in_transaction(self.__isFirstExecution, taskName, retryCount)
+            if not firstExecution:
+                # we can simply return here, this is a duplicate fired task
+                logging.info('A duplicate task "%s" has been queued by taskqueue infrastructure. Ignoring.', taskName)
+                self.response.status_code = 200
+                return
+
+        requestData = {'POST': self.request.POST, 'GET': self.request.GET}[method]
+        method = requestData.get('method') or method
         
         currentConfig = config.currentConfiguration()
         machineConfig = getMachineConfig(self.request)
@@ -166,17 +184,22 @@ class FSMHandler(webapp.RequestHandler):
         else:
             
             obj = TemporaryStateObject()
-            # the case of headers is inconsistent on dev_appserver and appengine
-            # ie 'X-AppEngine-TaskRetryCount' vs. 'X-AppEngine-Taskretrycount'
-            lowerCaseHeaders = dict([(key.lower(), value) for key, value in self.request.headers.items()])
             
             # add the retry counter into the machine context from the header
-            retryCount = int(lowerCaseHeaders.get('x-appengine-taskretrycount', 0))
             obj[RETRY_COUNT_PARAM] = retryCount
             
             # add the actual task name to the context
-            taskName = lowerCaseHeaders.get('x-appengine-taskname')
             obj[TASK_NAME_PARAM] = taskName
             
             # dispatch
             fsm.dispatch(fsmEvent, obj)
+
+    def __isFirstExecution(self, taskName, retryCount):
+        """ Ensures that the task has not been executed before. Meant to be run in a transaction. """
+        firstExecution = False
+        keyName = '%s--%s' % (taskName, retryCount)
+        existingTaskName = _FantasmTaskSemaphore.get_by_key_name(keyName)
+        if not existingTaskName:
+            _FantasmTaskSemaphore(key_name=keyName).put()
+            firstExecution = True
+        return firstExecution

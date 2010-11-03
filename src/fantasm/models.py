@@ -99,3 +99,7 @@ class _FantasmLog( db.Model ):
     message = db.TextProperty()
     stack = db.TextProperty()
     tags = db.StringListProperty()
+
+class _FantasmTaskSemaphore( db.Model ):
+    """ A model that simply stores the task name so that we can guarantee only-once semantics. """
+    createdTime = db.DateTimeProperty(auto_now_add=True)
