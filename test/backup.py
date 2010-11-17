@@ -143,7 +143,7 @@ class BackupEntity(DatastoreContinuationFSMAction):
         
         model = context['model']
         backupId = context['backupId']
-        entities = obj.results
+        entities = obj['results']
 
         backupEntities = []
         for originalEntity in entities:
@@ -190,9 +190,9 @@ class SelectBackupToDelete(DatastoreContinuationFSMAction):
         
     def execute(self, context, obj):
         """ Adds the backup_id and model to the context. """
-        if not obj['results']:
+        if not obj['result']:
             return None
-        backupEntity = obj.result
+        backupEntity = obj['result']
         context['model'] = backupEntity.model
         context['backupId'] = backupEntity.backupId
         db.delete(backupEntity)

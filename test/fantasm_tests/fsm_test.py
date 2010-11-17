@@ -498,7 +498,7 @@ class DatastoreFSMContinuationTests(DatastoreFSMContinuationBaseTests):
         self.assertEqual('state-continuation', self.context.currentState.name)
         self.assertTrue(self.context.currentState.isContinuation)
         self.assertFalse(self.context.get(CONTINUATION_PARAM)) # continuation param is popped out
-        self.assertEqual(self.modelKeys[5:7], [m.key() for m in obj.results])
+        self.assertEqual(self.modelKeys[5:7], [m.key() for m in obj['results']])
         
         # and check that the expected cursor is in the continuation task
         query.with_cursor(cursor) # unexpected - i would have though the previous fetch() would leave the cursor

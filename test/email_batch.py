@@ -37,7 +37,9 @@ class SendEmail(DatastoreContinuationFSMAction):
         return Subscriber.all()
         
     def execute(self, context, obj):
-        subscriber = obj.result
+        if not obj['result']:
+            return None # datastore continuations can go "one past" the end of the results; we need to handle this here
+        subscriber = obj['result']
         # TODO: send email to subscriber
         logging.info('Sending email to %s', subscriber.email)
         return 'next'

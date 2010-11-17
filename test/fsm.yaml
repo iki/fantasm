@@ -73,6 +73,7 @@ state_machines:
   - name: send-email
     action: SendEmail
     continuation: True
+    final: True # this is a datastore continuation, so we might cursor one past the end of the results
     transitions:
       - event: next
         to: update-counter

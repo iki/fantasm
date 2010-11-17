@@ -20,9 +20,9 @@ class MyDatastoreContinuationFSMAction(DatastoreContinuationFSMAction):
         if not obj['results']:
             return None
         context.logger.info('MyDatastoreFSMContinuationAction.execute(): %s', 
-                            [o.key().id() for o in obj.results],
-                            tags=[str(o.key()) for o in obj.results])
-        context['key'] = [r.key() for r in obj.results] # would be nice for this casting on .put()
+                            [o.key().id() for o in obj['results']],
+                            tags=[str(o.key()) for o in obj['results']])
+        context['key'] = [r.key() for r in obj['results']] # would be nice for this casting on .put()
         time.sleep(5.0 * random.random())
         return 'event2'
 
