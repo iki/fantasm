@@ -36,7 +36,7 @@ import random
 import copy
 import time
 from django.utils import simplejson
-from google.appengine.api.labs.taskqueue.taskqueue import Task, Queue, TaskAlreadyExistsError, TombstonedTaskError
+from google.appengine.api.taskqueue.taskqueue import Task, Queue, TaskAlreadyExistsError, TombstonedTaskError
 from google.appengine.ext import db
 from google.appengine.api import memcache
 from fantasm import constants, config

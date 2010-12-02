@@ -23,7 +23,7 @@ import traceback
 import StringIO
 from google.appengine.ext import deferred
 from fantasm.models import _FantasmLog
-from google.appengine.api.labs.taskqueue import taskqueue
+from google.appengine.api.taskqueue import taskqueue
 
 LOG_URL = '/fantasm/log/'
 

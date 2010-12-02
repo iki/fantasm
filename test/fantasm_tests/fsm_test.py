@@ -5,7 +5,7 @@ import urllib
 import datetime
 from django.utils import simplejson
 import random # pylint: disable-msg=W0611
-from google.appengine.api.labs.taskqueue.taskqueue import Queue, Task # pylint: disable-msg=W0611
+from google.appengine.api.taskqueue.taskqueue import Queue, Task # pylint: disable-msg=W0611
 from google.appengine.api import memcache # pylint: disable-msg=W0611
 from google.appengine.ext import db
 from fantasm import config

@@ -12,14 +12,17 @@ import fantasm
 from fantasm import config
 from fantasm.fsm import FSM
 from google.appengine.ext import webapp
-from google.appengine.api.labs.taskqueue.taskqueue import TaskAlreadyExistsError
+from google.appengine.api.taskqueue.taskqueue import TaskAlreadyExistsError
 
 # pylint: disable-msg=C0111, C0103, W0613, W0612
 # - docstrings not reqd in unit tests
 # - mock interfaces need to inherit args with '_' in them
 
+os.environ['APPLICATION_ID'] = 'fantasm'
+APP_ID = os.environ['APPLICATION_ID']
+
 class TaskDouble(object):
-    """ TaskDouble is a mock for google.appengine.api.labs.taskqueue.Task """
+    """ TaskDouble is a mock for google.appengine.api.taskqueue.Task """
     def __init__(self, url, params=None, name=None, transactional=False, method='POST', countdown=0):
         """ Initialize MockTask """
         self.url = url
@@ -43,7 +46,7 @@ class TaskQueueDouble(object):
         self.name = name
         
     def add(self, task_or_tasks, transactional=False):
-        """ mock for google.appengine.api.labs.taskqueue.add """
+        """ mock for google.appengine.api.taskqueue.add """
         if isinstance(task_or_tasks, list):
             tasks = task_or_tasks
             for task in tasks:
@@ -109,7 +112,7 @@ def runQueuedTasks(queueName='default'):
     # pylint: disable-msg=W0212
     #         allow access to protected member _IsValidQueue
     tq = apiproxy_stub_map.apiproxy.GetStub('taskqueue')
-    assert tq._IsValidQueue(queueName)
+    assert tq._IsValidQueue(queueName, APP_ID)
     assert tq.GetTasks(queueName)
     
     retries = {}

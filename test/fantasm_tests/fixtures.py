@@ -1,7 +1,7 @@
 """ Unit testing fixtures """
 import os
 import unittest
-import google.appengine.api.labs.taskqueue.taskqueue_stub as taskqueue_stub
+import google.appengine.api.taskqueue.taskqueue_stub as taskqueue_stub
 import google.appengine.api.datastore_file_stub as datastore_file_stub
 import google.appengine.api.apiproxy_stub_map as apiproxy_stub_map
 import google.appengine.api.urlfetch_stub as urlfetch_stub
