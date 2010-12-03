@@ -30,7 +30,7 @@ This module should be specified as a handler for fantasm URLs in app.yaml:
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
-from fantasm import handlers
+from fantasm import handlers, console
 
 def createApplication():
     """Create new WSGIApplication and register all handlers.
@@ -39,9 +39,10 @@ def createApplication():
         an instance of webapp.WSGIApplication with all fantasm handlers registered.
     """
     return webapp.WSGIApplication([
-        (r"^/[^\/]+/graphviz/.+", handlers.FSMGraphvizHandler),
-        (r"^/[^\/]+/fsm/.+", handlers.FSMHandler),
-        (r"^/[^\/]+/log/", handlers.FSMLogHandler),
+        (r"^/[^\/]+/fsm/.+",       handlers.FSMHandler),
+        (r"^/[^\/]+/graphviz/.+",  handlers.FSMGraphvizHandler),
+        (r"^/[^\/]+/log/",         handlers.FSMLogHandler),
+        (r"^/[^\/]+/?",            console.Dashboard),
     ],
     debug=True)
 
