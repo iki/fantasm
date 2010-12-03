@@ -17,75 +17,9 @@ class Dashboard(webapp.RequestHandler):
 <html>
 <head>
   <title>Fantasm</title>
-  <style>
-  html, body, div, h1, h2, h3, h4, h5, h6, p, img, dl, dt, dd, ol, ul, li, table, caption, tbody, tfoot, thead, tr, th, td, form, fieldset, embed, object, applet {
-      border: 0px;
-      margin: 0px;
-      padding: 0px;
-  }
-  body {
-    color: black;
-    font-family: Arial, sans-serif;
-    padding: 20px;
-    font-size: 0.95em;
-  }
-  h4, h5, table {
-      font-size: 0.95em;
-  }
-  table {
-      border-collapse: separate;
-  }
-  table[cellspacing=0] {
-      border-spacing: 0px 0px;
-  }
-  thead {
-      border-color: inherit;
-      display: table-header-group;
-      vertical-align: middle;
-  }
-  tbody {
-      border-color: inherit;
-      display: table-row-group;
-      vertical-align: middle;
-  }
-  tr {
-      border-color: inherit;
-      display: table-row;
-      vertical-align: inherit;
-  }
-  th {
-      font-weight: bold;
-  }
-  td, th {
-      display: table-cell;
-      vertical-align: inherit;
-  }
-  .ae-table {
-      border: 1px solid #C5D7EF;
-      border-collapse: collapse;
-      width: 100%;
-  }
-  .ae-table thead th {
-      background: #C5D7EF;
-      font-weight: bold;
-      text-align: left;
-      vertical-align: bottom;
-  }
-  .ae-table th, .ae-table td {
-      background-color: white;
-      margin: 0px;
-      padding: 0.35em 1em 0.25em 0.35em;
-  }
-  .ae-table td {
-      border-bottom: 1px solid #C5D7EF;
-      border-top: 1px solid #C5D7EF;
-  }
-  .ae-even td, .ae-even th, .ae-even-top td, .ae-even-tween td, .ae-even-bottom td, ol.ae-even {
-      background-color: #E9E9E9;
-      border-bottom: 1px solid #C5D7EF;
-      border-top: 1px solid #C5D7EF;
-  }
-  </style>
+"""
+        s += STYLESHEET
+        s += """
 </head>
 <body>
 
@@ -134,3 +68,75 @@ class Dashboard(webapp.RequestHandler):
 </html>
 """
         return s
+
+STYLESHEET = """
+<style>
+html, body, div, h1, h2, h3, h4, h5, h6, p, img, dl, dt, dd, ol, ul, li, table, caption, tbody, tfoot, thead, tr, th, td, form, fieldset, embed, object, applet {
+    border: 0px;
+    margin: 0px;
+    padding: 0px;
+}
+body {
+  color: black;
+  font-family: Arial, sans-serif;
+  padding: 20px;
+  font-size: 0.95em;
+}
+h4, h5, table {
+    font-size: 0.95em;
+}
+table {
+    border-collapse: separate;
+}
+table[cellspacing=0] {
+    border-spacing: 0px 0px;
+}
+thead {
+    border-color: inherit;
+    display: table-header-group;
+    vertical-align: middle;
+}
+tbody {
+    border-color: inherit;
+    display: table-row-group;
+    vertical-align: middle;
+}
+tr {
+    border-color: inherit;
+    display: table-row;
+    vertical-align: inherit;
+}
+th {
+    font-weight: bold;
+}
+td, th {
+    display: table-cell;
+    vertical-align: inherit;
+}
+.ae-table {
+    border: 1px solid #C5D7EF;
+    border-collapse: collapse;
+    width: 100%;
+}
+.ae-table thead th {
+    background: #C5D7EF;
+    font-weight: bold;
+    text-align: left;
+    vertical-align: bottom;
+}
+.ae-table th, .ae-table td {
+    background-color: white;
+    margin: 0px;
+    padding: 0.35em 1em 0.25em 0.35em;
+}
+.ae-table td {
+    border-bottom: 1px solid #C5D7EF;
+    border-top: 1px solid #C5D7EF;
+}
+.ae-even td, .ae-even th, .ae-even-top td, .ae-even-tween td, .ae-even-bottom td, ol.ae-even {
+    background-color: #E9E9E9;
+    border-bottom: 1px solid #C5D7EF;
+    border-top: 1px solid #C5D7EF;
+}
+</style>
+"""
