@@ -282,8 +282,8 @@ class FSMContext(dict):
         """ Generates a task for initializing the machine. """
         assert self.currentState.name == FSM.PSEUDO_INIT
         
-        url = self.buildUrl(self.currentState.name, FSM.PSEUDO_INIT)
-        params = self.buildParams(self.currentState.name, FSM.PSEUDO_INIT)
+        url = self.buildUrl(self.currentState, FSM.PSEUDO_INIT)
+        params = self.buildParams(self.currentState, FSM.PSEUDO_INIT)
         taskName = taskName or self.getTaskName(FSM.PSEUDO_INIT)
         task = Task(name=taskName, method=self.method, url=url, params=params, countdown=countdown)
         return task
@@ -474,8 +474,8 @@ class FSMContext(dict):
         """
         assert nextEvent is not None
         
-        url = self.buildUrl(self.currentState.name, nextEvent)
-        params = self.buildParams(self.currentState.name, nextEvent)
+        url = self.buildUrl(self.currentState, nextEvent)
+        params = self.buildParams(self.currentState, nextEvent)
         taskName = self.getTaskName(nextEvent)
         
         task = Task(name=taskName, method=self.method, url=url, params=params, countdown=countdown)
@@ -529,8 +529,8 @@ class FSMContext(dict):
         now = time.time()
         try:
             self[constants.INDEX_PARAM] = index
-            url = self.buildUrl(self.currentState.name, nextEvent)
-            params = self.buildParams(self.currentState.name, nextEvent)
+            url = self.buildUrl(self.currentState, nextEvent)
+            params = self.buildParams(self.currentState, nextEvent)
             # int(now / (fanInPeriod - 1 + 30)) included because it was in [2], but is less needed now that
             # we use random.randint in seeding memcache. for long fan in periods, and the case where random.randint
             # hits the same value twice, this may cause problems for up to fanInPeriod + 30s.
@@ -707,26 +707,29 @@ class FSMContext(dict):
             
             raise
     
-    def buildUrl(self, stateName, eventName):
+    def buildUrl(self, state, event):
         """ Builds the taskqueue url. 
         
-        @param stateName: the name of the State to dispatch to
-        @param eventName: the event to dispatch
-        @return: a url that can be used to build a taskqueue.Task instance to .dispatch(eventName)  
+        @param state: the State to dispatch to
+        @param event: the event to dispatch
+        @return: a url that can be used to build a taskqueue.Task instance to .dispatch(event)
         """
-        assert stateName and eventName
-        return self.url
+        assert state and event
+        return self.url + '%s/%s/%s/%s/' % (constants.URL_SEPARATOR, 
+                                            state.name, 
+                                            event, 
+                                            state.getTransition(event).target.name)
     
-    def buildParams(self, stateName, eventName):
+    def buildParams(self, state, event):
         """ Builds the taskqueue params. 
         
-        @param stateName: the name of the State to dispatch to
-        @param eventName: the event to dispatch
+        @param state: the State to dispatch to
+        @param event: the event to dispatch
         @return: a dict suitable to use in constructing a url (GET) or using as params (POST)
         """
-        assert stateName and eventName
-        params = {constants.STATE_PARAM: stateName, 
-                  constants.EVENT_PARAM: eventName,
+        assert state and event
+        params = {constants.STATE_PARAM: state.name, 
+                  constants.EVENT_PARAM: event,
                   constants.INSTANCE_NAME_PARAM: self.instanceName}
         for key, value in self.items():
             if key not in constants.NON_CONTEXT_PARAMS:

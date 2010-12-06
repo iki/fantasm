@@ -50,6 +50,8 @@ PARAM_TYPES = {
     STARTED_AT_PARAM: float,
 }
 
+URL_SEPARATOR = 'f'
+
 CHARS_FOR_RANDOM = 'BDGHJKLMNPQRTVWXYZ23456789' # no vowels or things that look like vowels - profanity-free!
 
 REQUEST_LENGTH = 30

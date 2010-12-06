@@ -24,7 +24,7 @@ from google.appengine.api.capabilities import CapabilitySet
 from fantasm import config, constants
 from fantasm.fsm import FSM
 from fantasm.constants import NON_CONTEXT_PARAMS, STATE_PARAM, EVENT_PARAM, INSTANCE_NAME_PARAM, TASK_NAME_PARAM, \
-                              RETRY_COUNT_PARAM, STARTED_AT_PARAM
+                              RETRY_COUNT_PARAM, STARTED_AT_PARAM, URL_SEPARATOR
 from fantasm.exceptions import UnknownMachineError, RequiredServicesUnavailableRuntimeError
 from fantasm.models import _FantasmTaskSemaphore
 
@@ -43,12 +43,14 @@ def getMachineConfig(request):
     @return: a config._machineConfig instance
     """ 
     
-    # parse out the machine-name from the path {mount-point}/fsm/{machine-name}/
+    # parse out the machine-name from the path {mount-point}/fsm/{machine-name}/f/startState/event/endState/
+    # NOTE: /f/startState/event/endState/ is optional
     path = request.path
-    if path.endswith('/'):
-        path = path[:-1]
-    rindex = path.rfind('/')
-    machineName = path[rindex+1:]
+    parts = [part for part in path.split('/') if part]
+    if len(parts) >= 5 and parts[-4] == URL_SEPARATOR:
+        machineName = parts[-5]
+    else:
+        machineName = parts[-1]
     
     # load the configuration, lookup the machine-specific configuration
     # FIXME: sort out a module level cache for the configuration - it must be sensitive to YAML file changes
