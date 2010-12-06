@@ -654,15 +654,11 @@ class FSMContext(dict):
             if haveReadLock and deleted == memcache.DELETE_NETWORK_FAILURE:
                 logging.error("Unable to release the fan in read lock.")
                 
-            
-    def _handleException(self, event, obj):
-        """ Method for child classes to override to handle exceptions. 
+    def getMaxRetries(self):
+        """ Method that returns the maximum number of retries for this particular dispatch 
         
-        @param event: 
-        @param obj: 
+        @param obj: an object that the FSMContext can operate on  
         """
-        retryCount = obj.get(constants.RETRY_COUNT_PARAM, 0)
-        
         # get max_retries configuration
         try:
             transition = self.startingState.getTransition(self.startingEvent)
@@ -670,7 +666,17 @@ class FSMContext(dict):
         except UnknownEventError:
             # can't find the transition, use the machine-level default
             maxRetries = self.maxRetries
+        return maxRetries
             
+    def _handleException(self, event, obj):
+        """ Method for child classes to override to handle exceptions. 
+        
+        @param event: a string event 
+        @param obj: an object that the FSMContext can operate on  
+        """
+        retryCount = obj.get(constants.RETRY_COUNT_PARAM, 0)
+        maxRetries = self.getMaxRetries()
+        
         if retryCount >= maxRetries:
             # need to permanently fail
             logging.critical('Max-requeues reached. Machine has terminated in an unknown state. ' +
