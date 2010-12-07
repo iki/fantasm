@@ -3,7 +3,7 @@ state_machines:
 - name: SelfTransitionTests
   namespace: fantasm_tests.actions
   queue: default
-  max_retries: 10
+  task_retry_limit: 10
   
   states:
   
@@ -28,7 +28,7 @@ state_machines:
 - name: TaskQueueFSMTests
   namespace: fantasm_tests.actions
   queue: default
-  max_retries: 10
+  task_retry_limit: 10
 
   states:
     
@@ -41,7 +41,7 @@ state_machines:
         - event: next-event
           to: state-normal
           action: CountExecuteCalls
-          max_retries: 99
+          task_retry_limit: 99
       
     - name: state-normal
       entry: CountExecuteCalls
@@ -61,7 +61,7 @@ state_machines:
 - name: ContextRecorder
   namespace: fantasm_tests.actions
   queue: default
-  max_retries: 10
+  task_retry_limit: 10
   
   context_types:
       db_Key_defined_in_context_types: google.appengine.ext.db.Key
@@ -91,7 +91,7 @@ state_machines:
 - name: TaskQueueFSMTestsFinalExit
   namespace: fantasm_tests.actions
   queue: default
-  max_retries: 10
+  task_retry_limit: 10
 
   states:
     

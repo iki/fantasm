@@ -8,7 +8,7 @@ state_machines:
 - name: Backup
   namespace: backup
   queue: backup
-  max_retries: 10
+  task_retry_limit: 10
   
   context_types:
     lastBackup: datetime
@@ -41,7 +41,7 @@ state_machines:
 - name: DeleteBackup
   namespace: backup
   queue: backup
-  max_retries: 10
+  task_retry_limit: 10
   
   context_types:
     daysOld: int

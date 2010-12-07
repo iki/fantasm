@@ -209,12 +209,28 @@ class _MachineConfig(object):
         self.queueName = initDict.get(constants.MACHINE_QUEUE_NAME_ATTRIBUTE, constants.DEFAULT_QUEUE_NAME)
         self.namespace = initDict.get(constants.NAMESPACE_ATTRIBUTE)
         
-        # machine max_retries
-        self.maxRetries = initDict.get(constants.MAX_RETRIES_ATTRIBUTE, constants.DEFAULT_MAX_RETRIES)
-        try:
-            self.maxRetries = int(self.maxRetries)
-        except ValueError:
-            raise exceptions.InvalidMaxRetriesError(self.name, self.maxRetries)
+        # if both max_retries and task_retry_limit specified, raise an exception
+        if constants.MAX_RETRIES_ATTRIBUTE in initDict and constants.TASK_RETRY_LIMIT_ATTRIBUTE in initDict:
+            raise exceptions.MaxRetriesAndTaskRetryLimitMutuallyExclusiveError(self.name)
+        
+        self.taskRetryLimit = constants.DEFAULT_TASK_RETRY_LIMIT
+        
+        # machine max_retries - sets taskRetryLimit internally
+        if constants.MAX_RETRIES_ATTRIBUTE in initDict:
+            logging.warning('max_retries is deprecated. Use task_retry_limit instead.')
+            self.taskRetryLimit = initDict[constants.MAX_RETRIES_ATTRIBUTE]
+            try:
+                self.taskRetryLimit = int(self.taskRetryLimit)
+            except ValueError:
+                raise exceptions.InvalidMaxRetriesError(self.name, self.taskRetryLimit)
+            
+        # machine task_retry_limit
+        if constants.TASK_RETRY_LIMIT_ATTRIBUTE in initDict:
+            self.taskRetryLimit = initDict[constants.TASK_RETRY_LIMIT_ATTRIBUTE]
+            try:
+                self.taskRetryLimit = int(self.taskRetryLimit)
+            except ValueError:
+                raise exceptions.InvalidTaskRetryLimitError(self.name, self.taskRetryLimit)
             
         self.states = {}
         self.transitions = {}
@@ -231,6 +247,11 @@ class _MachineConfig(object):
             self.rootUrl = constants.DEFAULT_ROOT_URL
         elif not rootUrl.endswith('/'):
             self.rootUrl += '/'
+            
+    @property
+    def maxRetries(self):
+        """ maxRetries is a synonym for taskRetryLimit """
+        return self.taskRetryLimit
         
     def addState(self, stateDict):
         """ Adds a state to this machine (using a dictionary representation). """
@@ -265,7 +286,8 @@ class _MachineConfig(object):
 class _StateConfig(object):
     """ Configuration of a state. """
     
-    def __init__(self, stateDict, machine):
+    # R0912:268:_StateConfig.__init__: Too many branches (22/20)
+    def __init__(self, stateDict, machine): # pylint: disable-msg=R0912
         """ Builds a _StateConfig from a dictionary representation. This state is not added to the machine. """
         
         self.machineName = machine.name
@@ -399,12 +421,28 @@ class _TransitionConfig(object):
         # transition namespace
         self.namespace = transDict.get(constants.NAMESPACE_ATTRIBUTE, machine.namespace)
 
+        # if both max_retries and task_retry_limit specified, raise an exception
+        if constants.MAX_RETRIES_ATTRIBUTE in transDict and constants.TASK_RETRY_LIMIT_ATTRIBUTE in transDict:
+            raise exceptions.MaxRetriesAndTaskRetryLimitMutuallyExclusiveError(self.machineName)
+            
+        self.taskRetryLimit = machine.taskRetryLimit
+
         # transition maxRetries
-        self.maxRetries = transDict.get(constants.MAX_RETRIES_ATTRIBUTE, machine.maxRetries)
-        try:
-            self.maxRetries = int(self.maxRetries)
-        except ValueError:
-            raise exceptions.InvalidMaxRetriesError(self.name, self.maxRetries)
+        if constants.MAX_RETRIES_ATTRIBUTE in transDict:
+            logging.warning('max_retries is deprecated. Use task_retry_limit instead.')
+            self.taskRetryLimit = transDict[constants.MAX_RETRIES_ATTRIBUTE]
+            try:
+                self.taskRetryLimit = int(self.taskRetryLimit)
+            except ValueError:
+                raise exceptions.InvalidMaxRetriesError(self.name, self.taskRetryLimit)
+
+        # transition taskRetryLimit
+        if constants.TASK_RETRY_LIMIT_ATTRIBUTE in transDict:
+            self.taskRetryLimit = transDict[constants.TASK_RETRY_LIMIT_ATTRIBUTE]
+            try:
+                self.taskRetryLimit = int(self.taskRetryLimit)
+            except ValueError:
+                raise exceptions.InvalidTaskRetryLimitError(self.name, self.taskRetryLimit)
             
         # transition countdown
         self.countdown = transDict.get(constants.TRANS_COUNTDOWN_ATTRIBUTE, constants.DEFAULT_COUNTDOWN)
@@ -448,3 +486,8 @@ class _TransitionConfig(object):
             raise exceptions.UnsupportedConfigurationError(self.machineName, self.fromState.name,
                 'Exit actions on states with a transition to a fan_in state are not supported.'
             )
+
+    @property
+    def maxRetries(self):
+        """ maxRetries is a synonym for taskRetryLimit """
+        return self.taskRetryLimit

@@ -208,21 +208,21 @@ def getMachineNameByFilename(filename):
     """
     return filename.replace('test-', '').replace('.yaml', '')
     
-def setUpByFilename(obj, filename, machineName=None, instanceName=None, maxRetriesOverrides=None, method='GET'):
+def setUpByFilename(obj, filename, machineName=None, instanceName=None, taskRetryLimitOverrides=None, method='GET'):
     """ Configures obj (a unittest.TestCase instance) with obj.context 
     
     @param obj: a unittest.TestCase instance
     @param filename: a filename like 'test-Foo.yaml'
     @param machineName: a machine name define in filename
     @param instanceName: an fsm instance name   
-    @param maxRetriesOverrides: a dict of {'transitionName' : maxRetries} use to override values in .yaml 
+    @param taskRetryLimitOverrides: a dict of {'transitionName' : taskRetryLimit} use to override values in .yaml 
     """
     obj.machineName = machineName or filename.replace('test-', '').replace('.yaml', '')
     filename = os.path.join(os.path.dirname(__file__), 'yaml', filename)
     obj.currentConfig = config.loadYaml(filename=filename)
     obj.machineConfig = obj.currentConfig.machines[obj.machineName]
-    if maxRetriesOverrides:
-        overrideMaxRetries(obj.machineConfig, maxRetriesOverrides)
+    if taskRetryLimitOverrides:
+        overrideTaskRetryLimitRetries(obj.machineConfig, taskRetryLimitOverrides)
     obj.factory = FSM(currentConfig=obj.currentConfig)
     obj.context = obj.factory.createFSMInstance(obj.machineConfig.name, instanceName=instanceName, method=method)
     obj.initialState = obj.context.initialState
@@ -293,12 +293,12 @@ def overrideFails(machineConfig, fails, tranFails):
         transition.action.fails = fail
             
         
-def overrideMaxRetries(machineConfig, overrides):
-    """ Configures all the .maxRetries parameters on all the Transitions 
+def overrideTaskRetryLimit(machineConfig, overrides):
+    """ Configures all the .taskRetryLimit parameters on all the Transitions 
     
     @param machineConfig: a config._MachineConfig instance
-    @param overrides: a dict of {'transitionName' : max_retries} to override
+    @param overrides: a dict of {'transitionName' : task_retry_limit} to override
     """
-    for (transitionName, maxRetries) in overrides.items():
+    for (transitionName, taskRetryLimit) in overrides.items():
         transition = machineConfig.transitions[transitionName]
-        transition.maxRetries = maxRetries
+        transition.taskRetryLimit = taskRetryLimit

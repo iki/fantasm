@@ -40,6 +40,10 @@ class TestMachineDictionaryProcessing(unittest.TestCase):
         super(TestMachineDictionaryProcessing, self).setUp()
         self.machineName = 'MyMachine'
         self.machineDict = {constants.MACHINE_NAME_ATTRIBUTE: self.machineName}
+        
+    def tearDown(self):
+        super(TestMachineDictionaryProcessing, self).tearDown()
+        restore()
     
     def test_nameParsed(self):
         fsm = config._MachineConfig(self.machineDict)
@@ -89,7 +93,44 @@ class TestMachineDictionaryProcessing(unittest.TestCase):
         
     def test_maxRetriesDefault(self):
         fsm = config._MachineConfig(self.machineDict)
-        self.assertEquals(fsm.maxRetries, constants.DEFAULT_MAX_RETRIES)
+        self.assertEquals(fsm.maxRetries, constants.DEFAULT_TASK_RETRY_LIMIT)
+        
+    def test_maxRetriesIssuesDeprecationWarning(self):
+        loggingDouble = getLoggingDouble()
+        self.machineDict[constants.MAX_RETRIES_ATTRIBUTE] = '3'
+        fsm = config._MachineConfig(self.machineDict)
+        self.assertEquals(loggingDouble.count['warning'], 1)
+        
+    def test_taskRetryLimitInvalidRaisesException(self):
+        self.machineDict[constants.TASK_RETRY_LIMIT_ATTRIBUTE] = 'abc'
+        self.assertRaises(exceptions.InvalidTaskRetryLimitError, config._MachineConfig, self.machineDict)
+        
+    def test_taskRetryLimitParsed(self):
+        self.machineDict[constants.TASK_RETRY_LIMIT_ATTRIBUTE] = '3'
+        fsm = config._MachineConfig(self.machineDict)
+        self.assertEquals(fsm.taskRetryLimit, 3)
+        
+    def test_taskRetryLimitDefault(self):
+        fsm = config._MachineConfig(self.machineDict)
+        self.assertEquals(fsm.taskRetryLimit, constants.DEFAULT_TASK_RETRY_LIMIT)
+        
+    def test_maxRetriesAndTaskRetryLimitRaisesConfigurationError(self):
+        self.machineDict[constants.TASK_RETRY_LIMIT_ATTRIBUTE] = '3'
+        self.machineDict[constants.MAX_RETRIES_ATTRIBUTE] = '3'
+        self.assertRaises(exceptions.MaxRetriesAndTaskRetryLimitMutuallyExclusiveError, 
+                          config._MachineConfig, self.machineDict)
+                          
+    def test_settingTaskRetryLimitSetsMaxRetries(self):
+        """ taskRetryLimit and maxRetries should be set to the same value. """
+        self.machineDict[constants.TASK_RETRY_LIMIT_ATTRIBUTE] = '3'
+        fsm = config._MachineConfig(self.machineDict)
+        self.assertEquals(fsm.maxRetries, 3)
+        
+    def test_settingMaxRetriesSetsTaskRetryLimit(self):
+        """ maxRetries and taskRetryLimit should be set to the same value. """
+        self.machineDict[constants.MAX_RETRIES_ATTRIBUTE] = '3'
+        fsm = config._MachineConfig(self.machineDict)
+        self.assertEquals(fsm.taskRetryLimit, 3)
         
     def test_invalidAttributeRaisesException(self):
         self.machineDict['bad_attribute'] = 'something'
@@ -339,7 +380,7 @@ class TestTransitionDictionaryProcessing(unittest.TestCase):
         }
         self.fsm = config._MachineConfig({constants.MACHINE_NAME_ATTRIBUTE: 'MyMachine', 
                                           constants.NAMESPACE_ATTRIBUTE: 'fantasm_tests.config_test',
-                                          constants.MAX_RETRIES_ATTRIBUTE: 100})
+                                          constants.TASK_RETRY_LIMIT_ATTRIBUTE: 100})
         self.goodState = self.fsm.addState({constants.STATE_NAME_ATTRIBUTE: 'GoodState', 
                                             constants.STATE_ACTION_ATTRIBUTE: 'MockAction'})
     
@@ -411,14 +452,45 @@ class TestTransitionDictionaryProcessing(unittest.TestCase):
         self.assertRaises(exceptions.InvalidTransitionAttributeError, 
                           self.fsm.addTransition, self.transDict, 'GoodState')
         
-    def test_retryPolicyInheritedFromMachine(self):
+    def test_maxRetriesInheritedFromMachine(self):
         transition = self.fsm.addTransition(self.transDict, 'GoodState')
         self.assertEquals(transition.maxRetries, 100)
         
-    def test_retryPolicyOverridesMachineRetryPolicy(self):
+    def test_maxRetriesOverridesMachineRetryPolicy(self):
         self.transDict[constants.MAX_RETRIES_ATTRIBUTE] = 99
         transition = self.fsm.addTransition(self.transDict, 'GoodState')
         self.assertEquals(transition.maxRetries, 99)
+        
+    def test_maxRetriesEmitsDeprecationWarning(self):
+        loggingDouble = getLoggingDouble()
+        self.transDict[constants.MAX_RETRIES_ATTRIBUTE] = '3'
+        self.fsm.addTransition(self.transDict, 'GoodState')
+        self.assertEquals(loggingDouble.count['warning'], 1)
+        
+    def test_maxRetriesAndTaskRetryLimitCannotBothBeSpecified(self):
+        self.transDict[constants.MAX_RETRIES_ATTRIBUTE] = 99
+        self.transDict[constants.TASK_RETRY_LIMIT_ATTRIBUTE] = 99
+        self.assertRaises(exceptions.MaxRetriesAndTaskRetryLimitMutuallyExclusiveError, 
+                          self.fsm.addTransition, self.transDict, 'GoodState')
+        
+    def test_settingMaxRetriesSetsTaskRetryLimit(self):
+        self.transDict[constants.MAX_RETRIES_ATTRIBUTE] = 99
+        transition = self.fsm.addTransition(self.transDict, 'GoodState')
+        self.assertEquals(transition.taskRetryLimit, 99)
+        
+    def test_settingTaskRetryLimitSetsMaxRetries(self):
+        self.transDict[constants.TASK_RETRY_LIMIT_ATTRIBUTE] = 99
+        transition = self.fsm.addTransition(self.transDict, 'GoodState')
+        self.assertEquals(transition.maxRetries, 99)
+        
+    def test_taskRetryLimitInheritedFromMachine(self):
+        transition = self.fsm.addTransition(self.transDict, 'GoodState')
+        self.assertEquals(transition.taskRetryLimit, 100)
+        
+    def test_taskRetryLimitOverridesMachineTaskRetryLimit(self):
+        self.transDict[constants.TASK_RETRY_LIMIT_ATTRIBUTE] = 99
+        transition = self.fsm.addTransition(self.transDict, 'GoodState')
+        self.assertEquals(transition.taskRetryLimit, 99)
 
     def test_transitionActionOnContinuationRaisesException(self):
         self.goodState.continuation = True
@@ -453,7 +525,7 @@ class TestAdvancedTransitionDictionaryProcessing(unittest.TestCase):
         }
         self.fsm = config._MachineConfig({constants.MACHINE_NAME_ATTRIBUTE: 'MyMachine', 
                                           constants.NAMESPACE_ATTRIBUTE: 'fantasm_tests.config_test',
-                                          constants.MAX_RETRIES_ATTRIBUTE: 100})
+                                          constants.TASK_RETRY_LIMIT_ATTRIBUTE: 100})
         self.state1 = self.fsm.addState({constants.STATE_NAME_ATTRIBUTE: 'state1', 
                                          constants.STATE_ACTION_ATTRIBUTE: 'MockAction'})
         self.state2 = self.fsm.addState({constants.STATE_NAME_ATTRIBUTE: 'state2', 

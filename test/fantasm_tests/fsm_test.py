@@ -69,7 +69,7 @@ class FSMTests(unittest.TestCase):
     def test_transitionRetryPolicyOverridesMachineLevelPolicy(self):
         setUpByFilename(self, 'test-TaskQueueFSMTests.yaml')
         transInitialToNormal = self.initialState._eventToTransition['next-event']
-        self.assertNotEquals(self.machineConfig.maxRetries, transInitialToNormal.maxRetries)
+        self.assertNotEquals(self.machineConfig.taskRetryLimit, transInitialToNormal.taskRetryLimit)
         
     def test_createFSMInstance_no_initial_data(self):
         setUpByFilename(self, 'test-TaskQueueFSMTests.yaml')
@@ -366,8 +366,8 @@ class TaskQueueFSMTests(AppEngineTestCase):
     #         
     #     mock(name='CountExecuteCalls.execute', returns_func=executeReturnsNoEvent, tracker=None)
     #     self.context.currentState = self.stateNormal
-    #     self.transNormalToFinal.maxRetries = 10
-    #     self.context.maxRetries = 10
+    #     self.transNormalToFinal.taskRetryLimit = 10
+    #     self.context.taskRetryLimit = 10
     #     self.assertRaises(InvalidEventNameRuntimeError, self.context.dispatch, 'next-event', None)
     #     
     # def test_invalidNextEventRaisesException(self):
@@ -376,8 +376,8 @@ class TaskQueueFSMTests(AppEngineTestCase):
     #         
     #     mock(name='CountExecuteCalls.execute', returns_func=executeReturnsBadEvent, tracker=None)
     #     self.context.currentState = self.stateNormal
-    #     self.transNormalToFinal.maxRetries = 10
-    #     self.context.maxRetries = 10
+    #     self.transNormalToFinal.taskRetryLimit = 10
+    #     self.context.taskRetryLimit = 10
     #     self.assertRaises(InvalidEventNameRuntimeError, self.context.dispatch, 'next-event', None)
 
 # some bits borrowed from the taskqueue implementation
@@ -541,13 +541,15 @@ class DatastoreFSMContinuationTests(DatastoreFSMContinuationBaseTests):
         
         # patch a failing do action
         originalAction = self.context.currentState.getTransition(event).target.doAction
-        self.context.currentState.getTransition(event).target.doAction = RaiseExceptionContinuationAction()
-        self.assertRaises(Exception, self.context.dispatch, event, TemporaryStateObject())
-        self.assertEqual('state-initial', self.context.currentState.name)
-        self.assertEqual(4, len(self.mockQueue.tasks))
-        self.assertEqual('instanceName--continuation-1-1--state-initial--next-event--state-continuation--step-1', 
-                         self.mockQueue.tasks[-2][0].name)
-        self.context.currentState.getTransition(event).target.doAction = originalAction # patch it back
+        try:
+            self.context.currentState.getTransition(event).target.doAction = RaiseExceptionContinuationAction()
+            self.assertRaises(Exception, self.context.dispatch, event, TemporaryStateObject())
+            self.assertEqual('state-initial', self.context.currentState.name)
+            self.assertEqual(4, len(self.mockQueue.tasks))
+            self.assertEqual('instanceName--continuation-1-1--state-initial--next-event--state-continuation--step-1', 
+                             self.mockQueue.tasks[-2][0].name)
+        finally:
+            self.context.currentState.getTransition(event).target.doAction = originalAction # patch it back
         
         event = self.context.dispatch(event, TemporaryStateObject())
         self.assertEqual('Unable to queue continuation Task as it already exists. ' +
@@ -644,11 +646,13 @@ class DatastoreFSMContinuationFanInTests(DatastoreFSMContinuationBaseTests):
         
         # override the action of the transition raise an exception
         originalAction = self.context.currentState.getTransition(event).action
-        self.context.currentState.getTransition(event).action = RaiseExceptionAction()
-        self.assertRaises(Exception, self.context.dispatch, event, TemporaryStateObject())
-        self.assertEqual('state-continuation', self.context.currentState.name)
-        self.assertEqual(1, _FantasmFanIn.all().count()) # the work packages are restored on exception
-        self.context.currentState.getTransition(event).action = originalAction # and restore
+        try:
+            self.context.currentState.getTransition(event).action = RaiseExceptionAction()
+            self.assertRaises(Exception, self.context.dispatch, event, TemporaryStateObject())
+            self.assertEqual('state-continuation', self.context.currentState.name)
+            self.assertEqual(1, _FantasmFanIn.all().count()) # the work packages are restored on exception
+        finally:
+            self.context.currentState.getTransition(event).action = originalAction # and restore
         
         event = self.context.dispatch(event, TemporaryStateObject())
         self.assertEqual('state-fan-in', self.context.currentState.name)

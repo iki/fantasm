@@ -11,7 +11,7 @@ state_machines:
 ##############################################################################
 - name: SimpleMachine
   namespace: simple_machine
-  max_retries: 2
+  task_retry_limit: 2
 
   states:
   - name: state1
@@ -32,7 +32,7 @@ state_machines:
       - event: event2
         to: state3
         action: TransitionAction2
-        max_retries: 3
+        task_retry_limit: 3
     
   - name: state3
     entry: EntryAction3
@@ -99,7 +99,7 @@ state_machines:
 ##############################################################################
 - name: ComplexMachine
   namespace: complex_machine
-  max_retries: 2
+  task_retry_limit: 2
   
   context_types:
     key: google.appengine.ext.db.Key
@@ -121,7 +121,7 @@ state_machines:
     transitions:
       - event: event2
         to: state3
-        max_retries: 3
+        task_retry_limit: 3
 
   - name: state3
     entry: EntryAction3

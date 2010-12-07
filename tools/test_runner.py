@@ -68,13 +68,6 @@ def suite():
 
 if __name__ == "__main__":
 
-    coverage_report_dir = os.environ.get('VENDASTA_CODE_COVERAGE_DIR')
-
-    if coverage_report_dir:
-        from coverage import coverage
-        cov = coverage()
-        cov.start() # need to do this as early as possible to "catch" the import statements
-    
     sys.path.insert(0, os.path.join(os.environ['APPENGINEDIR'], 'lib', 'django'))
 
     import sys
@@ -87,9 +80,3 @@ if __name__ == "__main__":
         TeamcityTestRunner().run(test_suite)
     else:
         unittest.TextTestRunner(verbosity=int(os.environ.get('UNITTEST_VERBOSITY', 1))).run(test_suite)
-
-
-    if coverage_report_dir:
-        cov.stop()
-        cov.html_report(directory=coverage_report_dir, omit_prefixes=COVERAGE_OMIT_PATHS)
-        cov.erase()

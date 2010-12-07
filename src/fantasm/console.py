@@ -1,15 +1,19 @@
+""" Views for the console. """
 
 from google.appengine.ext import webapp
 from fantasm import config
 
 class Dashboard(webapp.RequestHandler):
+    """ The main dashboard. """
     
     def get(self):
+        """ GET """
         
         self.response.out.write(self.generateDashboard())
         
         
     def generateDashboard(self):
+        """ Generates the HTML for the dashboard. """
         
         currentConfig = config.currentConfiguration()
         

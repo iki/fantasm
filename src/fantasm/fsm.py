@@ -44,7 +44,7 @@ from fantasm.log import Logger
 from fantasm.state import State
 from fantasm.transition import Transition
 from fantasm.exceptions import UnknownEventError, UnknownStateError, UnknownMachineError, \
-                               FanInWriteLockFailureRuntimeError, FanInReadLockFailureRuntimeError
+                               FanInWriteLockFailureRuntimeError
 from fantasm.models import _FantasmFanIn, _FantasmInstance
 from fantasm import models
 from fantasm.utils import knuthHash
@@ -117,13 +117,13 @@ class FSM(object):
                 # add the transition from pseudo-init to initialState
                 if state.isInitialState:
                     transition = Transition(FSM.PSEUDO_INIT, state)
-                    transition.maxRetries = machineConfig.maxRetries
+                    transition.taskRetryLimit = machineConfig.taskRetryLimit
                     self.pseudoInits[machineConfig.name].addTransition(transition, FSM.PSEUDO_INIT)
                     
                 # add the transition from finalState to pseudo-final
                 if state.isFinalState:
                     transition = Transition(FSM.PSEUDO_FINAL, pseudoFinal)
-                    transition.maxRetries = machineConfig.maxRetries
+                    transition.taskRetryLimit = machineConfig.taskRetryLimit
                     state.addTransition(transition, FSM.PSEUDO_FINAL)
                     
                 machine[constants.MACHINE_STATES_ATTRIBUTE][stateConfig.name] = state
@@ -178,10 +178,10 @@ class FSM(object):
             return self.machines[machineConfig.name][constants.MACHINE_TRANSITIONS_ATTRIBUTE][transitionConfig.name]
         
         target = self.machines[machineConfig.name][constants.MACHINE_STATES_ATTRIBUTE][transitionConfig.toState.name]
-        maxRetries = transitionConfig.maxRetries
+        taskRetryLimit = transitionConfig.taskRetryLimit
         countdown = transitionConfig.countdown
         
-        return Transition(transitionConfig.name, target, action=transitionConfig.action, maxRetries=maxRetries,
+        return Transition(transitionConfig.name, target, action=transitionConfig.action, taskRetryLimit=taskRetryLimit,
                           countdown=countdown)
         
     def createFSMInstance(self, machineName, currentStateName=None, instanceName=None, data=None, method='GET'):
@@ -209,13 +209,13 @@ class FSM(object):
         except KeyError:
             raise UnknownStateError(machineName, currentStateName)
                 
-        maxRetries = machineConfig.maxRetries
+        taskRetryLimit = machineConfig.taskRetryLimit
         url = machineConfig.url
         queueName = machineConfig.queueName
         
         return FSMContext(initialState, currentState=currentState, 
                           machineName=machineName, instanceName=instanceName,
-                          maxRetries=maxRetries, url=url, queueName=queueName,
+                          taskRetryLimit=taskRetryLimit, url=url, queueName=queueName,
                           data=data, contextTypes=machineConfig.contextTypes,
                           method=method)
 
@@ -223,7 +223,7 @@ class FSMContext(dict):
     """ A finite state machine context instance. """
     
     def __init__(self, initialState, currentState=None, machineName=None, instanceName=None,
-                 maxRetries=None, url=None, queueName=None, data=None, contextTypes=None,
+                 taskRetryLimit=None, url=None, queueName=None, data=None, contextTypes=None,
                  method='GET'):
         """ Constructor
         
@@ -231,7 +231,7 @@ class FSMContext(dict):
         @param currentState: a State instance
         @param machineName: the name of the fsm
         @param instanceName: the instance name of the fsm
-        @param maxRetries: the maximum number of times to retry running the fsm
+        @param taskRetryLimit: the maximum number of times to retry running the fsm
         @param url: the url of the fsm  
         @param queueName: the name of the appengine task queue 
         """
@@ -241,7 +241,7 @@ class FSMContext(dict):
         self.machineName = machineName
         self.instanceName = instanceName or self._generateUniqueInstanceName()
         self.queueName = queueName
-        self.maxRetries = maxRetries
+        self.taskRetryLimit = taskRetryLimit
         self.url = url
         self.method = method
         self.startingEvent = None
@@ -654,19 +654,19 @@ class FSMContext(dict):
             if haveReadLock and deleted == memcache.DELETE_NETWORK_FAILURE:
                 logging.error("Unable to release the fan in read lock.")
                 
-    def getMaxRetries(self):
+    def getTaskRetryLimit(self):
         """ Method that returns the maximum number of retries for this particular dispatch 
         
         @param obj: an object that the FSMContext can operate on  
         """
-        # get max_retries configuration
+        # get task_retry_limit configuration
         try:
             transition = self.startingState.getTransition(self.startingEvent)
-            maxRetries = transition.maxRetries
+            taskRetryLimit = transition.taskRetryLimit
         except UnknownEventError:
             # can't find the transition, use the machine-level default
-            maxRetries = self.maxRetries
-        return maxRetries
+            taskRetryLimit = self.taskRetryLimit
+        return taskRetryLimit
             
     def _handleException(self, event, obj):
         """ Method for child classes to override to handle exceptions. 
@@ -675,9 +675,9 @@ class FSMContext(dict):
         @param obj: an object that the FSMContext can operate on  
         """
         retryCount = obj.get(constants.RETRY_COUNT_PARAM, 0)
-        maxRetries = self.getMaxRetries()
+        taskRetryLimit = self.getTaskRetryLimit()
         
-        if retryCount >= maxRetries:
+        if retryCount >= taskRetryLimit:
             # need to permanently fail
             logging.critical('Max-requeues reached. Machine has terminated in an unknown state. ' +
                              '(Machine %s, State %s, Event %s)',

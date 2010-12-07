@@ -2,7 +2,7 @@ state_machines:
 
 - name: FileFSMContinuationTests
   namespace: fantasm_tests.actions
-  max_retries: 0
+  task_retry_limit: 0
   states:
     
     - name: state-continuation

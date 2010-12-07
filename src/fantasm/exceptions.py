@@ -200,29 +200,29 @@ class UnknownClassError(ConfigurationError):
         message = 'Class "%s" was not found in module "%s".' % (className, moduleName)
         super(UnknownClassError, self).__init__(message)
         
-class InvalidRetryPolicyError(ConfigurationError):
-    """ An invalid retry policy was specified. """
-    def __init__(self, machineName, retryPolicy):
-        """ Initialize exception """
-        message = 'Retry policy "%s" is invalid. Must be in %s. (Machine %s)' % \
-                  (retryPolicy, constants.VALID_RETRY_POLICIES, machineName)
-        super(InvalidRetryPolicyError, self).__init__(message)
-        
-class InvalidRetryIntervalError(ConfigurationError):
-    """ Retry interval must be a positive integer (time in seconds, 0 means immediate). """
-    def __init__(self, machineName, retryInterval):
-        """ Initialize exception """
-        message = '%s "%s" is invalid. Must be an integer. (Machine %s)' % \
-                  (constants.RETRY_INTERVAL_ATTRIBUTE, retryInterval, machineName)
-        super(InvalidRetryIntervalError, self).__init__(message)
-
 class InvalidMaxRetriesError(ConfigurationError):
-    """ Max retries must be a positive integer. """
+    """ max_retries must be a positive integer. """
     def __init__(self, machineName, maxRetries):
         """ Initialize exception """
         message = '%s "%s" is invalid. Must be an integer. (Machine %s)' % \
                   (constants.MAX_RETRIES_ATTRIBUTE, maxRetries, machineName)
         super(InvalidMaxRetriesError, self).__init__(message)
+
+class InvalidTaskRetryLimitError(ConfigurationError):
+    """ task_retry_limit must be a positive integer. """
+    def __init__(self, machineName, taskRetryLimit):
+        """ Initialize exception """
+        message = '%s "%s" is invalid. Must be an integer. (Machine %s)' % \
+                  (constants.TASK_RETRY_LIMIT_ATTRIBUTE, taskRetryLimit, machineName)
+        super(InvalidTaskRetryLimitError, self).__init__(message)
+        
+class MaxRetriesAndTaskRetryLimitMutuallyExclusiveError(ConfigurationError):
+    """ max_retries and task_retry_limit cannot both be specified on a machine. """
+    def __init__(self, machineName):
+        """ Initialize exception """
+        message = 'max_retries and task_retry_limit cannot both be specified on a machine. (Machine %s)' % \
+                  machineName
+        super(MaxRetriesAndTaskRetryLimitMutuallyExclusiveError, self).__init__(message)
 
 class TransitionNameRequiredError(ConfigurationError):
     """ Each transition requires a name. """

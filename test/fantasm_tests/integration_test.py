@@ -42,11 +42,12 @@ class RunTasksBaseTest(AppEngineTestCase):
         mock('config.currentConfiguration', returns=self.currentConfig, tracker=None)
         mock('random.randint', returns=1, tracker=None)
         
-    def setUpByFilename(self, filename, instanceName=None, maxRetriesOverrides=None, machineName=None, method='GET'):
+    def setUpByFilename(self, filename, instanceName=None, taskRetryLimitOverrides=None, machineName=None, 
+                        method='GET'):
         setUpByFilename(self, 
                         filename, 
                         instanceName=instanceName, 
-                        maxRetriesOverrides=maxRetriesOverrides, 
+                        taskRetryLimitOverrides=taskRetryLimitOverrides, 
                         machineName=machineName,
                         method=method)
         self.setUpMock()
