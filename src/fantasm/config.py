@@ -29,6 +29,19 @@ ALL_MACHINES = {}
 CURRENT_CONFIG = None
 YAML_TIMESTAMP = 0
 
+TASK_ATTRIBUTES = (
+    (constants.TASK_RETRY_LIMIT_ATTRIBUTE, 'taskRetryLimit', constants.DEFAULT_TASK_RETRY_LIMIT, 
+     exceptions.InvalidTaskRetryLimitError),
+    (constants.MIN_BACKOFF_SECONDS_ATTRIBUTE, 'minBackoffSeconds', constants.DEFAULT_MIN_BACKOFF_SECONDS, 
+     exceptions.InvalidMinBackoffSecondsError),
+    (constants.MAX_BACKOFF_SECONDS_ATTRIBUTE, 'maxBackoffSeconds', constants.DEFAULT_MAX_BACKOFF_SECONDS, 
+     exceptions.InvalidMaxBackoffSecondsError),
+    (constants.TASK_AGE_LIMIT_ATTRIBUTE, 'taskAgeLimit', constants.DEFAULT_TASK_AGE_LIMIT, 
+     exceptions.InvalidTaskAgeLimitError),
+    (constants.MAX_DOUBLINGS_ATTRIBUTE, 'maxDoublings', constants.DEFAULT_MAX_DOUBLINGS, 
+     exceptions.InvalidMaxDoublingsError),
+)
+
 def currentConfiguration(filename=None):
     """ Retrieves the current configuration specified by the fsm.yaml file. """
     # W0603: 32:currentConfiguration: Using the global statement
@@ -209,11 +222,20 @@ class _MachineConfig(object):
         self.queueName = initDict.get(constants.MACHINE_QUEUE_NAME_ATTRIBUTE, constants.DEFAULT_QUEUE_NAME)
         self.namespace = initDict.get(constants.NAMESPACE_ATTRIBUTE)
         
+        # machine task_retry_limit, min_backoff_seconds, max_backoff_seconds, task_age_limit, max_doublings
+        for (constant, attribute, default, exception) in TASK_ATTRIBUTES:
+            setattr(self, attribute, default)
+            if constant in initDict:
+                setattr(self, attribute, initDict[constant])
+                try:
+                    i = int(getattr(self, attribute))
+                    setattr(self, attribute, i)
+                except ValueError:
+                    raise exception(self.name, getattr(self, attribute))
+
         # if both max_retries and task_retry_limit specified, raise an exception
         if constants.MAX_RETRIES_ATTRIBUTE in initDict and constants.TASK_RETRY_LIMIT_ATTRIBUTE in initDict:
             raise exceptions.MaxRetriesAndTaskRetryLimitMutuallyExclusiveError(self.name)
-        
-        self.taskRetryLimit = constants.DEFAULT_TASK_RETRY_LIMIT
         
         # machine max_retries - sets taskRetryLimit internally
         if constants.MAX_RETRIES_ATTRIBUTE in initDict:
@@ -223,15 +245,7 @@ class _MachineConfig(object):
                 self.taskRetryLimit = int(self.taskRetryLimit)
             except ValueError:
                 raise exceptions.InvalidMaxRetriesError(self.name, self.taskRetryLimit)
-            
-        # machine task_retry_limit
-        if constants.TASK_RETRY_LIMIT_ATTRIBUTE in initDict:
-            self.taskRetryLimit = initDict[constants.TASK_RETRY_LIMIT_ATTRIBUTE]
-            try:
-                self.taskRetryLimit = int(self.taskRetryLimit)
-            except ValueError:
-                raise exceptions.InvalidTaskRetryLimitError(self.name, self.taskRetryLimit)
-            
+                        
         self.states = {}
         self.transitions = {}
         self.initialState = None

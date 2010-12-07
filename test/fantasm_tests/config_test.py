@@ -132,6 +132,58 @@ class TestMachineDictionaryProcessing(unittest.TestCase):
         fsm = config._MachineConfig(self.machineDict)
         self.assertEquals(fsm.taskRetryLimit, 3)
         
+    def test_minBackoffSecondsParsed(self):
+        self.machineDict[constants.MIN_BACKOFF_SECONDS_ATTRIBUTE] = '3'
+        fsm = config._MachineConfig(self.machineDict)
+        self.assertEquals(fsm.minBackoffSeconds, 3)
+        
+    def test_minBackoffSecondsDefault(self):
+        fsm = config._MachineConfig(self.machineDict)
+        self.assertEquals(fsm.minBackoffSeconds, constants.DEFAULT_MIN_BACKOFF_SECONDS)
+        
+    def test_minBackoffSecondsInvalidRaisesException(self):
+        self.machineDict[constants.MIN_BACKOFF_SECONDS_ATTRIBUTE] = 'abc'
+        self.assertRaises(exceptions.InvalidMinBackoffSecondsError, config._MachineConfig, self.machineDict)
+        
+    def test_maxBackoffSecondsParsed(self):
+        self.machineDict[constants.MAX_BACKOFF_SECONDS_ATTRIBUTE] = '3'
+        fsm = config._MachineConfig(self.machineDict)
+        self.assertEquals(fsm.maxBackoffSeconds, 3)
+        
+    def test_maxBackoffSecondsDefault(self):
+        fsm = config._MachineConfig(self.machineDict)
+        self.assertEquals(fsm.maxBackoffSeconds, constants.DEFAULT_MAX_BACKOFF_SECONDS)
+        
+    def test_maxBackoffSecondsInvalidRaisesException(self):
+        self.machineDict[constants.MAX_BACKOFF_SECONDS_ATTRIBUTE] = 'abc'
+        self.assertRaises(exceptions.InvalidMaxBackoffSecondsError, config._MachineConfig, self.machineDict)    
+    
+    def test_taskAgeLimitParsed(self):
+        self.machineDict[constants.TASK_AGE_LIMIT_ATTRIBUTE] = '3'
+        fsm = config._MachineConfig(self.machineDict)
+        self.assertEquals(fsm.taskAgeLimit, 3)
+        
+    def test_taskAgeLimitDefault(self):
+        fsm = config._MachineConfig(self.machineDict)
+        self.assertEquals(fsm.taskAgeLimit, constants.DEFAULT_TASK_AGE_LIMIT)
+        
+    def test_taskAgeLimitInvalidRaisesException(self):
+        self.machineDict[constants.TASK_AGE_LIMIT_ATTRIBUTE] = 'abc'
+        self.assertRaises(exceptions.InvalidTaskAgeLimitError, config._MachineConfig, self.machineDict)
+        
+    def test_maxDoublingsParsed(self):
+        self.machineDict[constants.MAX_DOUBLINGS_ATTRIBUTE] = '3'
+        fsm = config._MachineConfig(self.machineDict)
+        self.assertEquals(fsm.maxDoublings, 3)
+        
+    def test_maxDoublingsDefault(self):
+        fsm = config._MachineConfig(self.machineDict)
+        self.assertEquals(fsm.maxDoublings, constants.DEFAULT_MAX_DOUBLINGS)
+        
+    def test_maxDoublingsInvalidRaisesException(self):
+        self.machineDict[constants.MAX_DOUBLINGS_ATTRIBUTE] = 'abc'
+        self.assertRaises(exceptions.InvalidMaxDoublingsError, config._MachineConfig, self.machineDict)
+        
     def test_invalidAttributeRaisesException(self):
         self.machineDict['bad_attribute'] = 'something'
         self.assertRaises(exceptions.InvalidMachineAttributeError, config._MachineConfig, self.machineDict)

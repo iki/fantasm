@@ -215,6 +215,38 @@ class InvalidTaskRetryLimitError(ConfigurationError):
         message = '%s "%s" is invalid. Must be an integer. (Machine %s)' % \
                   (constants.TASK_RETRY_LIMIT_ATTRIBUTE, taskRetryLimit, machineName)
         super(InvalidTaskRetryLimitError, self).__init__(message)
+
+class InvalidMinBackoffSecondsError(ConfigurationError):
+    """ min_backoff_seconds must be a positive integer. """
+    def __init__(self, machineName, minBackoffSeconds):
+        """ Initialize exception """
+        message = '%s "%s" is invalid. Must be an integer. (Machine %s)' % \
+                  (constants.MIN_BACKOFF_SECONDS_ATTRIBUTE, minBackoffSeconds, machineName)
+        super(InvalidMinBackoffSecondsError, self).__init__(message)
+        
+class InvalidMaxBackoffSecondsError(ConfigurationError):
+    """ max_backoff_seconds must be a positive integer. """
+    def __init__(self, machineName, maxBackoffSeconds):
+        """ Initialize exception """
+        message = '%s "%s" is invalid. Must be an integer. (Machine %s)' % \
+                  (constants.MAX_BACKOFF_SECONDS_ATTRIBUTE, maxBackoffSeconds, machineName)
+        super(InvalidMaxBackoffSecondsError, self).__init__(message)
+        
+class InvalidTaskAgeLimitError(ConfigurationError):
+    """ task_age_limit must be a positive integer. """
+    def __init__(self, machineName, taskAgeLimit):
+        """ Initialize exception """
+        message = '%s "%s" is invalid. Must be an integer. (Machine %s)' % \
+                  (constants.TASK_AGE_LIMIT_ATTRIBUTE, taskAgeLimit, machineName)
+        super(InvalidTaskAgeLimitError, self).__init__(message)
+        
+class InvalidMaxDoublingsError(ConfigurationError):
+    """ max_doublings must be a positive integer. """
+    def __init__(self, machineName, maxDoublings):
+        """ Initialize exception """
+        message = '%s "%s" is invalid. Must be an integer. (Machine %s)' % \
+                  (constants.MAX_DOUBLINGS_ATTRIBUTE, maxDoublings, machineName)
+        super(InvalidMaxDoublingsError, self).__init__(message)
         
 class MaxRetriesAndTaskRetryLimitMutuallyExclusiveError(ConfigurationError):
     """ max_retries and task_retry_limit cannot both be specified on a machine. """
