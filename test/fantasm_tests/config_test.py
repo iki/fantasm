@@ -432,7 +432,11 @@ class TestTransitionDictionaryProcessing(unittest.TestCase):
         }
         self.fsm = config._MachineConfig({constants.MACHINE_NAME_ATTRIBUTE: 'MyMachine', 
                                           constants.NAMESPACE_ATTRIBUTE: 'fantasm_tests.config_test',
-                                          constants.TASK_RETRY_LIMIT_ATTRIBUTE: 100})
+                                          constants.TASK_RETRY_LIMIT_ATTRIBUTE: 100,
+                                          constants.MIN_BACKOFF_SECONDS_ATTRIBUTE: 101,
+                                          constants.MAX_BACKOFF_SECONDS_ATTRIBUTE: 102,
+                                          constants.TASK_AGE_LIMIT_ATTRIBUTE: 103,
+                                          constants.MAX_DOUBLINGS_ATTRIBUTE: 104})
         self.goodState = self.fsm.addState({constants.STATE_NAME_ATTRIBUTE: 'GoodState', 
                                             constants.STATE_ACTION_ATTRIBUTE: 'MockAction'})
     
@@ -543,6 +547,42 @@ class TestTransitionDictionaryProcessing(unittest.TestCase):
         self.transDict[constants.TASK_RETRY_LIMIT_ATTRIBUTE] = 99
         transition = self.fsm.addTransition(self.transDict, 'GoodState')
         self.assertEquals(transition.taskRetryLimit, 99)
+
+    def test_minBackoffSecondsInheritedFromMachine(self):
+        transition = self.fsm.addTransition(self.transDict, 'GoodState')
+        self.assertEquals(transition.minBackoffSeconds, 101)
+
+    def test_minBackoffSecondsOverridesMachineTaskRetryLimit(self):
+        self.transDict[constants.MIN_BACKOFF_SECONDS_ATTRIBUTE] = 99
+        transition = self.fsm.addTransition(self.transDict, 'GoodState')
+        self.assertEquals(transition.minBackoffSeconds, 99)
+
+    def test_maxBackoffSecondsInheritedFromMachine(self):
+        transition = self.fsm.addTransition(self.transDict, 'GoodState')
+        self.assertEquals(transition.maxBackoffSeconds, 102)
+
+    def test_maxBackoffSecondsOverridesMachineTaskRetryLimit(self):
+        self.transDict[constants.MAX_BACKOFF_SECONDS_ATTRIBUTE] = 99
+        transition = self.fsm.addTransition(self.transDict, 'GoodState')
+        self.assertEquals(transition.maxBackoffSeconds, 99)
+
+    def test_taskAgeLimitInheritedFromMachine(self):
+        transition = self.fsm.addTransition(self.transDict, 'GoodState')
+        self.assertEquals(transition.taskAgeLimit, 103)
+
+    def test_taskAgeLimitOverridesMachineTaskRetryLimit(self):
+        self.transDict[constants.TASK_AGE_LIMIT_ATTRIBUTE] = 99
+        transition = self.fsm.addTransition(self.transDict, 'GoodState')
+        self.assertEquals(transition.taskAgeLimit, 99)
+
+    def test_maxDoublingsInheritedFromMachine(self):
+        transition = self.fsm.addTransition(self.transDict, 'GoodState')
+        self.assertEquals(transition.maxDoublings, 104)
+
+    def test_maxDoublingsOverridesMachineTaskRetryLimit(self):
+        self.transDict[constants.MAX_DOUBLINGS_ATTRIBUTE] = 99
+        transition = self.fsm.addTransition(self.transDict, 'GoodState')
+        self.assertEquals(transition.maxDoublings, 99)
 
     def test_transitionActionOnContinuationRaisesException(self):
         self.goodState.continuation = True

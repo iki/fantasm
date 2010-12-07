@@ -435,12 +435,22 @@ class _TransitionConfig(object):
         # transition namespace
         self.namespace = transDict.get(constants.NAMESPACE_ATTRIBUTE, machine.namespace)
 
+        # transition task_retry_limit, min_backoff_seconds, max_backoff_seconds, task_age_limit, max_doublings
+        # W0612:439:_TransitionConfig.__init__: Unused variable 'default'
+        for (constant, attribute, default, exception) in TASK_ATTRIBUTES: # pylint: disable-msg=W0612
+            setattr(self, attribute, getattr(machine, attribute)) # default from the machine
+            if constant in transDict:
+                setattr(self, attribute, transDict[constant])
+                try:
+                    i = int(getattr(self, attribute))
+                    setattr(self, attribute, i)
+                except ValueError:
+                    raise exception(self.machineName, getattr(self, attribute))
+
         # if both max_retries and task_retry_limit specified, raise an exception
         if constants.MAX_RETRIES_ATTRIBUTE in transDict and constants.TASK_RETRY_LIMIT_ATTRIBUTE in transDict:
             raise exceptions.MaxRetriesAndTaskRetryLimitMutuallyExclusiveError(self.machineName)
             
-        self.taskRetryLimit = machine.taskRetryLimit
-
         # transition maxRetries
         if constants.MAX_RETRIES_ATTRIBUTE in transDict:
             logging.warning('max_retries is deprecated. Use task_retry_limit instead.')
@@ -449,14 +459,6 @@ class _TransitionConfig(object):
                 self.taskRetryLimit = int(self.taskRetryLimit)
             except ValueError:
                 raise exceptions.InvalidMaxRetriesError(self.name, self.taskRetryLimit)
-
-        # transition taskRetryLimit
-        if constants.TASK_RETRY_LIMIT_ATTRIBUTE in transDict:
-            self.taskRetryLimit = transDict[constants.TASK_RETRY_LIMIT_ATTRIBUTE]
-            try:
-                self.taskRetryLimit = int(self.taskRetryLimit)
-            except ValueError:
-                raise exceptions.InvalidTaskRetryLimitError(self.name, self.taskRetryLimit)
             
         # transition countdown
         self.countdown = transDict.get(constants.TRANS_COUNTDOWN_ATTRIBUTE, constants.DEFAULT_COUNTDOWN)
