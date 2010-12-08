@@ -36,7 +36,8 @@ import random
 import copy
 import time
 from django.utils import simplejson
-from google.appengine.api.taskqueue.taskqueue import Task, Queue, TaskAlreadyExistsError, TombstonedTaskError
+from google.appengine.api.taskqueue.taskqueue import Task, Queue, TaskAlreadyExistsError, TombstonedTaskError, \
+                                                     TaskRetryOptions
 from google.appengine.ext import db
 from google.appengine.api import memcache
 from fantasm import constants, config
@@ -116,14 +117,14 @@ class FSM(object):
                 
                 # add the transition from pseudo-init to initialState
                 if state.isInitialState:
-                    transition = Transition(FSM.PSEUDO_INIT, state)
-                    transition.taskRetryLimit = machineConfig.taskRetryLimit
+                    transition = Transition(FSM.PSEUDO_INIT, state, 
+                                            retryOptions = self._buildRetryOptions(machineConfig))
                     self.pseudoInits[machineConfig.name].addTransition(transition, FSM.PSEUDO_INIT)
                     
                 # add the transition from finalState to pseudo-final
                 if state.isFinalState:
-                    transition = Transition(FSM.PSEUDO_FINAL, pseudoFinal)
-                    transition.taskRetryLimit = machineConfig.taskRetryLimit
+                    transition = Transition(FSM.PSEUDO_FINAL, pseudoFinal,
+                                            retryOptions = self._buildRetryOptions(machineConfig))
                     state.addTransition(transition, FSM.PSEUDO_FINAL)
                     
                 machine[constants.MACHINE_STATES_ATTRIBUTE][stateConfig.name] = state
@@ -134,6 +135,15 @@ class FSM(object):
                 machine[constants.MACHINE_TRANSITIONS_ATTRIBUTE][transitionConfig.name] = transition
                 event = transitionConfig.event
                 source.addTransition(transition, event)
+                
+    def _buildRetryOptions(self, obj):
+        """ Builds a TaskRetryOptions object. """
+        return TaskRetryOptions(
+            task_retry_limit = obj.taskRetryLimit,
+            min_backoff_seconds = obj.minBackoffSeconds,
+            max_backoff_seconds = obj.maxBackoffSeconds,
+            task_age_limit = obj.taskAgeLimit,
+            max_doublings = obj.maxDoublings)
                 
     def _getState(self, machineConfig, stateConfig):
         """ Returns a State instance based on the machineConfig/stateConfig 
@@ -178,11 +188,11 @@ class FSM(object):
             return self.machines[machineConfig.name][constants.MACHINE_TRANSITIONS_ATTRIBUTE][transitionConfig.name]
         
         target = self.machines[machineConfig.name][constants.MACHINE_STATES_ATTRIBUTE][transitionConfig.toState.name]
-        taskRetryLimit = transitionConfig.taskRetryLimit
+        retryOptions = self._buildRetryOptions(transitionConfig)
         countdown = transitionConfig.countdown
         
-        return Transition(transitionConfig.name, target, action=transitionConfig.action, taskRetryLimit=taskRetryLimit,
-                          countdown=countdown)
+        return Transition(transitionConfig.name, target, action=transitionConfig.action,
+                          countdown=countdown, retryOptions=retryOptions)
         
     def createFSMInstance(self, machineName, currentStateName=None, instanceName=None, data=None, method='GET'):
         """ Creates an FSMContext instance with non-initialized data 
@@ -209,13 +219,13 @@ class FSM(object):
         except KeyError:
             raise UnknownStateError(machineName, currentStateName)
                 
-        taskRetryLimit = machineConfig.taskRetryLimit
+        retryOptions = self._buildRetryOptions(machineConfig)
         url = machineConfig.url
         queueName = machineConfig.queueName
         
         return FSMContext(initialState, currentState=currentState, 
                           machineName=machineName, instanceName=instanceName,
-                          taskRetryLimit=taskRetryLimit, url=url, queueName=queueName,
+                          retryOptions=retryOptions, url=url, queueName=queueName,
                           data=data, contextTypes=machineConfig.contextTypes,
                           method=method)
 
@@ -223,7 +233,7 @@ class FSMContext(dict):
     """ A finite state machine context instance. """
     
     def __init__(self, initialState, currentState=None, machineName=None, instanceName=None,
-                 taskRetryLimit=None, url=None, queueName=None, data=None, contextTypes=None,
+                 retryOptions=None, url=None, queueName=None, data=None, contextTypes=None,
                  method='GET'):
         """ Constructor
         
@@ -231,7 +241,7 @@ class FSMContext(dict):
         @param currentState: a State instance
         @param machineName: the name of the fsm
         @param instanceName: the instance name of the fsm
-        @param taskRetryLimit: the maximum number of times to retry running the fsm
+        @param retryOptions: the TaskRetryOptions for the machine
         @param url: the url of the fsm  
         @param queueName: the name of the appengine task queue 
         """
@@ -241,7 +251,7 @@ class FSMContext(dict):
         self.machineName = machineName
         self.instanceName = instanceName or self._generateUniqueInstanceName()
         self.queueName = queueName
-        self.taskRetryLimit = taskRetryLimit
+        self.retryOptions = retryOptions
         self.url = url
         self.method = method
         self.startingEvent = None
@@ -460,16 +470,18 @@ class FSMContext(dict):
         if transition.target.isFanIn:
             task = self._queueDispatchFanIn(nextEvent, fanInPeriod=transition.target.fanInPeriod)
         else:
-            task = self._queueDispatchNormal(nextEvent, queue=queue, countdown=transition.countdown)
+            task = self._queueDispatchNormal(nextEvent, queue=queue, countdown=transition.countdown,
+                                             retryOptions=transition.retryOptions)
             
         return task
         
-    def _queueDispatchNormal(self, nextEvent, queue=True, countdown=0):
+    def _queueDispatchNormal(self, nextEvent, queue=True, countdown=0, retryOptions=None):
         """ Queues a call to .dispatch(nextEvent) in the appengine Task queue. 
         
         @param nextEvent: a string event 
         @param queue: a boolean indicating whether or not to queue a Task, or leave it to the caller 
         @param countdown: the number of seconds to countdown before the queued task fires
+        @param retryOptions: the RetryOptions for the task
         @return: a taskqueue.Task instance which may or may not have been queued already
         """
         assert nextEvent is not None
@@ -478,7 +490,8 @@ class FSMContext(dict):
         params = self.buildParams(self.currentState, nextEvent)
         taskName = self.getTaskName(nextEvent)
         
-        task = Task(name=taskName, method=self.method, url=url, params=params, countdown=countdown)
+        task = Task(name=taskName, method=self.method, url=url, params=params, countdown=countdown,
+                    retry_options=retryOptions)
         if queue:
             Queue(name=self.queueName).add(task)
         
@@ -662,10 +675,10 @@ class FSMContext(dict):
         # get task_retry_limit configuration
         try:
             transition = self.startingState.getTransition(self.startingEvent)
-            taskRetryLimit = transition.taskRetryLimit
+            taskRetryLimit = transition.retryOptions.task_retry_limit
         except UnknownEventError:
             # can't find the transition, use the machine-level default
-            taskRetryLimit = self.taskRetryLimit
+            taskRetryLimit = self.retryOptions.task_retry_limit
         return taskRetryLimit
             
     def _handleException(self, event, obj):
@@ -677,12 +690,13 @@ class FSMContext(dict):
         retryCount = obj.get(constants.RETRY_COUNT_PARAM, 0)
         taskRetryLimit = self.getTaskRetryLimit()
         
-        if retryCount >= taskRetryLimit:
+        if taskRetryLimit and retryCount >= taskRetryLimit:
             # need to permanently fail
             logging.critical('Max-requeues reached. Machine has terminated in an unknown state. ' +
                              '(Machine %s, State %s, Event %s)',
                              self.machineName, self.startingState.name, event, exc_info=True)
-            # eat the exception so that a 200-series response is given
+            # re-raise, letting App Engine TaskRetryOptions kill the task
+            raise
         else:
             # re-raise the exception
             logging.warning('Exception occurred processing event. Task will be retried. ' +

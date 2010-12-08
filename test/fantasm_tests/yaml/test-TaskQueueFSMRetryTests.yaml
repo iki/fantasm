@@ -2,16 +2,27 @@ state_machines:
   
 - name: TaskQueueFSMRetryTests
   namespace: fantasm_tests.actions
-  task_retry_limit: 10
   
   states:
     - name: state-initial
-      action: RaiseExceptionAction
+      action: CountExecuteCalls
       initial: True
       transitions:
-        - event: ok
+        - event: ok1
           to: state-final
-          task_retry_limit: 99
+          task_retry_limit: 1
+        - event: ok2
+          to: state-final
+          min_backoff_seconds: 2
+        - event: ok3
+          to: state-final
+          max_backoff_seconds: 3
+        - event: ok4
+          to: state-final
+          task_age_limit: 4
+        - event: ok5
+          to: state-final
+          max_doublings: 5
           
     - name: state-final
       action: RaiseExceptionAction

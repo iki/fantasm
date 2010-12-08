@@ -22,20 +22,20 @@ import logging
 class Transition(object):
     """ A transition object for a machine. """
     
-    def __init__(self, name, target, action=None, taskRetryLimit=None, countdown=0):
+    def __init__(self, name, target, action=None, countdown=0, retryOptions=None):
         """ Constructor 
         
         @param name: the name of the Transition instance
         @param target: a State instance
         @param action: the optional action for a state
-        @param taskRetryLimit: the number of retries allowed for this transition
         @param countdown: the number of seconds to wait before firing this transition. Default 0.
+        @param retryOptions: the TaskRetryOptions for this transition
         """
         self.target = target
         self.name = name
         self.action = action
-        self.taskRetryLimit = taskRetryLimit
         self.countdown = countdown
+        self.retryOptions = retryOptions
         
     # W0613:144:Transition.execute: Unused argument 'obj'
     # args are present for a future(?) transition action

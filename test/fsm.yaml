@@ -143,3 +143,19 @@ state_machines:
     entry: EntryAction5
     action: FinalAction5
     final: True # optional, may be many, must be at least one
+
+##############################################################################
+- name: RetryTest
+  namespace: retry_test
+  task_retry_limit: 4
+  max_backoff_seconds: 3
+  states:
+  - name: State1
+    action: State1
+    initial: True
+    transitions:
+      - event: ok
+        to: State2
+  - name: State2
+    action: State2
+    final: True

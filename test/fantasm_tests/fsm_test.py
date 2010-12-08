@@ -69,7 +69,7 @@ class FSMTests(unittest.TestCase):
     def test_transitionRetryPolicyOverridesMachineLevelPolicy(self):
         setUpByFilename(self, 'test-TaskQueueFSMTests.yaml')
         transInitialToNormal = self.initialState._eventToTransition['next-event']
-        self.assertNotEquals(self.machineConfig.taskRetryLimit, transInitialToNormal.taskRetryLimit)
+        self.assertNotEquals(self.machineConfig.taskRetryLimit, transInitialToNormal.retryOptions.task_retry_limit)
         
     def test_createFSMInstance_no_initial_data(self):
         setUpByFilename(self, 'test-TaskQueueFSMTests.yaml')
@@ -405,29 +405,63 @@ class TaskQueueFSMRetryTests(AppEngineTestCase):
         mock(name='Queue.add', returns_func=self.mockQueue.add, tracker=None)
         self.loggingDouble = getLoggingDouble()
         
+        # drive the machine to ready
+        self.initEvent = self.context.initialize()
+        self.mockQueue.purge() # clear the initialization task
+        
     def tearDown(self):
         super(TaskQueueFSMRetryTests, self).tearDown()
         restore()
         
-    def parseRetryFromName(self, task):
-        name = task.name
-        retry = int(name.split('--')[4])
-        return retry
-
-    def assertApproximates(self, first, second, tolerance, msg=None):
-        """Assert that first is near second by at most tolerance."""
-        if abs(first - second) > tolerance:
-            raise self.failureException(msg or "abs(%r - %r) > %r" % (first, second, tolerance))
-            
-    def getDatetimeForCountdown(self, countdown):
-        """ Baesd on some code from taskqueue used to compute an eta from a countdown. """
-        return datetime.datetime.now().replace(tzinfo=_UTC).astimezone(_UTC) + datetime.timedelta(seconds=countdown)
-                                    
-    def test_maximumRetriesDoesNotRequeue(self):
-        pass # TODO
+    def test_taskRetryLimitAddedToQueuedTask(self):
+        def execute(context, obj):
+            return 'ok1'            
+        from fantasm_tests.actions import CountExecuteCalls
+        mock(name='CountExecuteCalls.execute', returns_func=execute, tracker=None)
+        self.context.dispatch(self.initEvent, TemporaryStateObject())
+        self.assertEquals(len(self.mockQueue.tasks), 1)
+        task = self.mockQueue.tasks[0][0]
+        self.assertEquals(task.retry_options.task_retry_limit, 1)
         
-    def test_maximumRetriesEmitsCriticalLog(self):
-        pass # TODO
+    def test_minBackoffSecondsAddedToQueuedTask(self):
+        def execute(context, obj):
+            return 'ok2'            
+        from fantasm_tests.actions import CountExecuteCalls
+        mock(name='CountExecuteCalls.execute', returns_func=execute, tracker=None)
+        self.context.dispatch(self.initEvent, TemporaryStateObject())
+        self.assertEquals(len(self.mockQueue.tasks), 1)
+        task = self.mockQueue.tasks[0][0]
+        self.assertEquals(task.retry_options.min_backoff_seconds, 2)
+        
+    def test_maxBackoffSecondsAddedToQueuedTask(self):
+        def execute(context, obj):
+            return 'ok3'            
+        from fantasm_tests.actions import CountExecuteCalls
+        mock(name='CountExecuteCalls.execute', returns_func=execute, tracker=None)
+        self.context.dispatch(self.initEvent, TemporaryStateObject())
+        self.assertEquals(len(self.mockQueue.tasks), 1)
+        task = self.mockQueue.tasks[0][0]
+        self.assertEquals(task.retry_options.max_backoff_seconds, 3)
+        
+    def test_taskAgeLimitAddedToQueuedTask(self):
+        def execute(context, obj):
+            return 'ok4'            
+        from fantasm_tests.actions import CountExecuteCalls
+        mock(name='CountExecuteCalls.execute', returns_func=execute, tracker=None)
+        self.context.dispatch(self.initEvent, TemporaryStateObject())
+        self.assertEquals(len(self.mockQueue.tasks), 1)
+        task = self.mockQueue.tasks[0][0]
+        self.assertEquals(task.retry_options.task_age_limit, 4)
+        
+    def test_maxDoublingsAddedToQueuedTask(self):
+        def execute(context, obj):
+            return 'ok5'            
+        from fantasm_tests.actions import CountExecuteCalls
+        mock(name='CountExecuteCalls.execute', returns_func=execute, tracker=None)
+        self.context.dispatch(self.initEvent, TemporaryStateObject())
+        self.assertEquals(len(self.mockQueue.tasks), 1)
+        task = self.mockQueue.tasks[0][0]
+        self.assertEquals(task.retry_options.max_doublings, 5)
 
 class TestModel(db.Model):
     prop1 = db.StringProperty()
