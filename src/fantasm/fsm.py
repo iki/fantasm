@@ -667,7 +667,7 @@ class FSMContext(dict):
             if haveReadLock and deleted == memcache.DELETE_NETWORK_FAILURE:
                 logging.error("Unable to release the fan in read lock.")
                 
-    def getTaskRetryLimit(self):
+    def _getTaskRetryLimit(self):
         """ Method that returns the maximum number of retries for this particular dispatch 
         
         @param obj: an object that the FSMContext can operate on  
@@ -688,7 +688,7 @@ class FSMContext(dict):
         @param obj: an object that the FSMContext can operate on  
         """
         retryCount = obj.get(constants.RETRY_COUNT_PARAM, 0)
-        taskRetryLimit = self.getTaskRetryLimit()
+        taskRetryLimit = self._getTaskRetryLimit()
         
         if taskRetryLimit and retryCount >= taskRetryLimit:
             # need to permanently fail
