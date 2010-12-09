@@ -19,7 +19,7 @@ from fantasm.state import State
 from fantasm.models import _FantasmFanIn
 from fantasm.constants import STATE_PARAM, EVENT_PARAM, INSTANCE_NAME_PARAM, STEPS_PARAM, MACHINE_STATES_ATTRIBUTE, \
                               CONTINUATION_PARAM, INDEX_PARAM, GEN_PARAM, FORKED_CONTEXTS_PARAM, \
-                              FORK_PARAM, TASK_NAME_PARAM, URL_SEPARATOR
+                              FORK_PARAM, TASK_NAME_PARAM
 from fantasm_tests.fixtures import AppEngineTestCase
 from fantasm_tests.actions import RaiseExceptionAction, RaiseExceptionContinuationAction
 from fantasm_tests.helpers import TaskQueueDouble, getLoggingDouble
@@ -837,11 +837,10 @@ class StartStateMachineTests(unittest.TestCase):
     
     def test_correctUrlInTask(self):
         startStateMachine(self.machineName, {'a': '1'}, _currentConfig=self.currentConfig, method='POST')
-        self.assertEquals(self.getTask(0).url, '/fantasm/fsm/%s/%s/%s/%s/%s/' % (self.machineName,
-                                                                                 URL_SEPARATOR,
-                                                                                 FSM.PSEUDO_INIT,
-                                                                                 FSM.PSEUDO_INIT,
-                                                                                 self.initialState.name))
+        self.assertEquals(self.getTask(0).url, '/fantasm/fsm/%s/%s/%s/%s/' % (self.machineName,
+                                                                              FSM.PSEUDO_INIT,
+                                                                              FSM.PSEUDO_INIT,
+                                                                              self.initialState.name))
         
     def test_countdownIncludedInTask(self):
         # having trouble mocking Task, so I'll dip into a private attribute right on task

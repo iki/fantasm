@@ -24,8 +24,8 @@ from google.appengine.api.capabilities import CapabilitySet
 from fantasm import config, constants
 from fantasm.fsm import FSM
 from fantasm.constants import NON_CONTEXT_PARAMS, STATE_PARAM, EVENT_PARAM, INSTANCE_NAME_PARAM, TASK_NAME_PARAM, \
-                              RETRY_COUNT_PARAM, STARTED_AT_PARAM, URL_SEPARATOR
-from fantasm.exceptions import UnknownMachineError, RequiredServicesUnavailableRuntimeError
+                              RETRY_COUNT_PARAM, STARTED_AT_PARAM
+from fantasm.exceptions import UnknownMachineError, RequiredServicesUnavailableRuntimeError, FSMRuntimeError
 from fantasm.models import _FantasmTaskSemaphore
 
 REQUIRED_SERVICES = ('memcache', 'datastore_v3', 'taskqueue')
@@ -35,6 +35,25 @@ class TemporaryStateObject(dict):
         in-flight data.
     """
     pass
+    
+def getMachineNameFromRequest(request):
+    """ Returns the machine name embedded in the request.
+    
+    @param request: an HttpRequest
+    @return: the machineName (as a string)
+    """    
+    path = request.path
+    
+    # strip off the mount-point
+    currentConfig = config.currentConfiguration()
+    mountPoint = currentConfig.rootUrl # e.g., '/fantasm/'
+    if not path.startswith(mountPoint):
+        raise FSMRuntimeError("rootUrl '%s' must match app.yaml mapping." % mountPoint)
+    path = path[len(mountPoint):]
+    
+    # split on '/', the second item will be the machine name
+    parts = path.split('/')
+    return parts[1] # 0-based index
 
 def getMachineConfig(request):
     """ Returns the machine configuration specified by a URI in a HttpReuest
@@ -43,14 +62,9 @@ def getMachineConfig(request):
     @return: a config._machineConfig instance
     """ 
     
-    # parse out the machine-name from the path {mount-point}/fsm/{machine-name}/f/startState/event/endState/
-    # NOTE: /f/startState/event/endState/ is optional
-    path = request.path
-    parts = [part for part in path.split('/') if part]
-    if len(parts) >= 5 and parts[-4] == URL_SEPARATOR:
-        machineName = parts[-5]
-    else:
-        machineName = parts[-1]
+    # parse out the machine-name from the path {mount-point}/fsm/{machine-name}/startState/event/endState/
+    # NOTE: /startState/event/endState/ is optional
+    machineName = getMachineNameFromRequest(request)
     
     # load the configuration, lookup the machine-specific configuration
     # FIXME: sort out a module level cache for the configuration - it must be sensitive to YAML file changes

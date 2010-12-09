@@ -302,3 +302,62 @@ def overrideTaskRetryLimit(machineConfig, overrides):
     for (transitionName, taskRetryLimit) in overrides.items():
         transition = machineConfig.transitions[transitionName]
         transition.taskRetryLimit = taskRetryLimit
+
+def buildRequest(method='GET', get_args=None, post_args=None, referrer=None, 
+                  path=None, cookies=None, host=None, port=None):
+    """ Builds a request suitable for view.initialize(). """
+
+    if not get_args:
+        get_args = {}
+        
+    if not post_args:
+        post_args = {}
+
+    wsgi = {
+            'REQUEST_METHOD': method,
+            'wsgi.url_scheme': 'http',
+            'SERVER_NAME': 'localhost',
+            'SERVER_PORT' : '80'
+    }
+    
+    if get_args:
+        wsgi['QUERY_STRING'] = urlencode(get_args)
+        
+    if referrer:
+        wsgi['HTTP_REFERER'] = referrer
+        
+    if path:
+        wsgi['PATH_INFO'] = path
+        
+    if host:
+        wsgi['SERVER_NAME'] = host
+        
+    if port:
+        wsgi['SERVER_PORT'] = str(port)
+        
+    if cookies:
+        if not isinstance(cookies, BaseCookie):
+            raise Exception('cookies, if set, must be a BaseCookie or subclass.')
+            
+        # HACK the replace('"', '') below is super-weird. For some reason, cookies.output is
+        # creating a string like this:
+        #
+        #    wallet="ABC"
+        #
+        # when it should be simply
+        #
+        #    wallet=ABC
+        #
+        # I'm sure this hack will eventually break and I sincerely apologize to whomever this
+        # affects.
+        wsgi['HTTP_COOKIE'] = cookies.output(header='', sep=';').strip().replace('"', '')
+        
+    request = webapp.Request(wsgi)
+
+    if post_args:
+        assert method == 'POST', 'method must be POST for post_args'
+        post_body = urlencode(post_args)
+        wsgi['wsgi.input'] = StringIO(post_body)
+        wsgi['CONTENT_LENGTH'] = len(post_body)
+    
+    return request

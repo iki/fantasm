@@ -729,10 +729,9 @@ class FSMContext(dict):
         @return: a url that can be used to build a taskqueue.Task instance to .dispatch(event)
         """
         assert state and event
-        return self.url + '%s/%s/%s/%s/' % (constants.URL_SEPARATOR, 
-                                            state.name, 
-                                            event, 
-                                            state.getTransition(event).target.name)
+        return self.url + '%s/%s/%s/' % (state.name, 
+                                         event, 
+                                         state.getTransition(event).target.name)
     
     def buildParams(self, state, event):
         """ Builds the taskqueue params. 
