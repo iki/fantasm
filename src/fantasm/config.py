@@ -24,11 +24,6 @@ from django.utils import simplejson
 import datetime
 from fantasm import exceptions, constants, utils
 
-ALL_MACHINES = {}
-
-CURRENT_CONFIG = None
-YAML_TIMESTAMP = 0
-
 TASK_ATTRIBUTES = (
     (constants.TASK_RETRY_LIMIT_ATTRIBUTE, 'taskRetryLimit', constants.DEFAULT_TASK_RETRY_LIMIT, 
      exceptions.InvalidTaskRetryLimitError),
@@ -42,23 +37,19 @@ TASK_ATTRIBUTES = (
      exceptions.InvalidMaxDoublingsError),
 )
 
+_config = None
+
 def currentConfiguration(filename=None):
     """ Retrieves the current configuration specified by the fsm.yaml file. """
     # W0603: 32:currentConfiguration: Using the global statement
-    global CURRENT_CONFIG, YAML_TIMESTAMP # pylint: disable-msg=W0603
+    global _config # pylint: disable-msg=W0603
     
-    filename = filename or _findYaml()
-    currentYamlTimestamp = os.path.getctime(filename)
-    
-    if CURRENT_CONFIG:
-        if currentYamlTimestamp != YAML_TIMESTAMP:
-            CURRENT_CONFIG = None
-             
-    if not CURRENT_CONFIG:
-        CURRENT_CONFIG = loadYaml(filename=filename)
-        YAML_TIMESTAMP = currentYamlTimestamp
+    # always reload the config for dev_appserver to grab recent dev changes
+    if _config and not constants.DEV_APPSERVER:
+        return _config
         
-    return CURRENT_CONFIG
+    _config = loadYaml(filename=filename)
+    return _config
 
 # following function is borrowed from mapreduce code
 # ...

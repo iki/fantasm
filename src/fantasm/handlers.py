@@ -105,7 +105,21 @@ class FSMGraphvizHandler(webapp.RequestHandler):
         else:
             self.response.out.write(content)
             
+_fsm = None
 
+def getCurrentFSM():
+    """ Returns the current FSM singleton. """
+    # W0603: 32:currentConfiguration: Using the global statement
+    global _fsm # pylint: disable-msg=W0603
+    
+    # always reload the FSM for dev_appserver to grab recent dev changes
+    if _fsm and not constants.DEV_APPSERVER:
+        return _fsm
+        
+    currentConfig = config.currentConfiguration()
+    _fsm = FSM(currentConfig=currentConfig)
+    return _fsm
+    
 class FSMHandler(webapp.RequestHandler):
     """ The main worker handler, used to process queued machine events. """
 
@@ -148,8 +162,7 @@ class FSMHandler(webapp.RequestHandler):
         requestData = {'POST': self.request.POST, 'GET': self.request.GET}[method]
         method = requestData.get('method') or method
         
-        currentConfig = config.currentConfiguration()
-        machineConfig = getMachineConfig(self.request)
+        machineName = getMachineNameFromRequest(self.request)
         
         # get the incoming instance name, if any
         instanceName = requestData.get(INSTANCE_NAME_PARAM)
@@ -164,12 +177,10 @@ class FSMHandler(webapp.RequestHandler):
         assert (fsmState and fsmEvent) or True # if we have a state, we should have an event
         
         # make a copy, add the data
-        # FIXME: sort out a module level cache for the FSM instance so that we actually
-        #        have singletons
-        fsm = FSM(currentConfig=currentConfig).createFSMInstance(machineConfig.name, 
-                                                                 currentStateName=fsmState, 
-                                                                 instanceName=instanceName,
-                                                                 method=method)
+        fsm = getCurrentFSM().createFSMInstance(machineName, 
+                                                currentStateName=fsmState, 
+                                                instanceName=instanceName,
+                                                method=method)
         
         # pull all the data off the url and stuff into the context
         for key, value in requestData.items():

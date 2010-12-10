@@ -17,6 +17,7 @@ Copyright 2010 VendAsta Technologies Inc.
    limitations under the License.
 """
 
+import os
 import re
 from django.utils import simplejson
 
@@ -124,3 +125,5 @@ VALID_TRANS_ATTRIBUTES = (NAMESPACE_ATTRIBUTE, MAX_RETRIES_ATTRIBUTE, TASK_RETRY
                           TASK_AGE_LIMIT_ATTRIBUTE, MAX_DOUBLINGS_ATTRIBUTE,
                           TRANS_TO_ATTRIBUTE, TRANS_EVENT_ATTRIBUTE, TRANS_ACTION_ATTRIBUTE,
                           TRANS_COUNTDOWN_ATTRIBUTE)
+
+DEV_APPSERVER = 'SERVER_SOFTWARE' in os.environ and os.environ['SERVER_SOFTWARE'].find('Development') >= 0
