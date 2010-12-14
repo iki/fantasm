@@ -11,6 +11,8 @@ import google.appengine.api.apiproxy_stub_map as apiproxy_stub_map
 import fantasm
 from fantasm import config
 from fantasm.fsm import FSM
+from fantasm.handlers import FSMLogHandler
+from fantasm.handlers import FSMHandler
 from google.appengine.ext import webapp
 from google.appengine.api.taskqueue.taskqueue import TaskAlreadyExistsError
 
@@ -107,13 +109,14 @@ def getLoggingDouble():
     mock(name='logging.critical', returns_func=loggingDouble.critical, tracker=None)
     return loggingDouble
 
-def runQueuedTasks(queueName='default'):
+def runQueuedTasks(queueName='default', assertTasks=True):
     """ Ability to run Tasks from unit/integration tests """
     # pylint: disable-msg=W0212
     #         allow access to protected member _IsValidQueue
     tq = apiproxy_stub_map.apiproxy.GetStub('taskqueue')
     assert tq._IsValidQueue(queueName, APP_ID)
-    assert tq.GetTasks(queueName)
+    if assertTasks:
+        assert tq.GetTasks(queueName)
     
     retries = {}
     runList = []
@@ -143,9 +146,9 @@ def runQueuedTasks(queueName='default'):
             record = True
             if task['url'] == '/fantasm/log/':
                 record = False
-                handler = fantasm.handlers.FSMLogHandler()
+                handler = FSMLogHandler()
             else:
-                handler = fantasm.handlers.FSMHandler()
+                handler = FSMHandler()
             parts = task['url'].split('?')
             assert 1 <= len(parts) <= 2
             

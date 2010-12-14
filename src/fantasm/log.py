@@ -53,6 +53,8 @@ class Logger( object ):
     def __init__(self, context):
         """ Constructor """
         self.context = context
+        self.level = logging.DEBUG
+        self.maxLevel = logging.CRITICAL
     
     def _log(self, level, namespace, tags, message, *args, **kwargs):
         """ Logs the message to the normal logging module and also queues a Task to create an _FantasmLog
@@ -69,7 +71,7 @@ class Logger( object ):
         stack = None
         if 'exc_info' in kwargs:
             f = StringIO.StringIO()
-            traceback.print_exc(50, f)
+            traceback.print_exc(25, f)
             stack = f.getvalue()
         serialized = deferred.serialize(_log,
                                         self.context.instanceName,
@@ -81,9 +83,28 @@ class Logger( object ):
                                         datetime.datetime.now(),
                                         *args,
                                         **kwargs)
-        task = taskqueue.Task(url=LOG_URL, payload=serialized)
-        # FIXME: a batch add may be more optimal, but there are quite a few more corners to deal with
-        taskqueue.Queue().add(task)
+        
+        try:
+            task = taskqueue.Task(url=LOG_URL, payload=serialized)
+            # FIXME: a batch add may be more optimal, but there are quite a few more corners to deal with
+            taskqueue.Queue().add(task)
+            
+        except taskqueue.TaskTooLargeError:
+            logging.warning("fantasm log message too large - skipping persistent storage")
+        
+    def setLevel(self, level):
+        """ Sets the minimum logging level to log 
+        
+        @param level: a log level (ie. logging.CRITICAL)
+        """
+        self.level = level
+        
+    def setMaxLevel(self, maxLevel):
+        """ Sets the maximum logging level to log 
+        
+        @param maxLevel: a max log level (ie. logging.CRITICAL)
+        """
+        self.maxLevel = maxLevel
         
     def debug(self, message, *args, **kwargs):
         """ Logs the message to the normal logging module and also queues a Task to create an _FantasmLog
@@ -93,6 +114,8 @@ class Logger( object ):
         @param args:
         @param kwargs:   
         """
+        if not (self.level <= logging.DEBUG <= self.maxLevel):
+            return
         namespace = kwargs.pop('namespace', None) # this is not expected in the logging.debug kwargs
         tags = kwargs.pop('tags', None) # this is not expected in the logging.debug kwargs
         logging.debug(message, *args, **kwargs)
@@ -106,6 +129,8 @@ class Logger( object ):
         @param args:
         @param kwargs:   
         """
+        if not (self.level <= logging.INFO <= self.maxLevel):
+            return
         namespace = kwargs.pop('namespace', None)
         tags = kwargs.pop('tags', None)
         logging.info(message, *args, **kwargs)
@@ -119,6 +144,8 @@ class Logger( object ):
         @param args:
         @param kwargs:   
         """
+        if not (self.level <= logging.WARNING <= self.maxLevel):
+            return
         namespace = kwargs.pop('namespace', None)
         tags = kwargs.pop('tags', None)
         logging.warning(message, *args, **kwargs)
@@ -132,6 +159,8 @@ class Logger( object ):
         @param args:
         @param kwargs:   
         """
+        if not (self.level <= logging.ERROR <= self.maxLevel):
+            return
         namespace = kwargs.pop('namespace', None)
         tags = kwargs.pop('tags', None)
         logging.error(message, *args, **kwargs)
@@ -145,6 +174,8 @@ class Logger( object ):
         @param args:
         @param kwargs:   
         """
+        if not (self.level <= logging.CRITICAL <= self.maxLevel):
+            return
         namespace = kwargs.pop('namespace', None)
         tags = kwargs.pop('tags', None)
         logging.critical(message, *args, **kwargs)
@@ -158,6 +189,8 @@ class Logger( object ):
         @param args:
         @param kwargs:   
         """
+        if not (self.level <= logging.ERROR <= self.maxLevel):
+            return
         namespace = kwargs.pop('namespace', None)
         tags = kwargs.pop('tags', None)
         logging.exception(message, *args, **kwargs)
