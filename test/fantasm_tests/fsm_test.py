@@ -729,11 +729,14 @@ class ContextYamlImportTests(unittest.TestCase):
         
     def test_imports_only(self):
         setUpByFilename(self, 'test-YamlImportOnly.yaml', machineName='TypeCoercionTests')
-        self.assertEqual(['MyMachine', 'TypeCoercionTests'], [machine for machine in self.currentConfig.machines])
+        self.assertTrue('MyMachine' in self.currentConfig.machines)
+        self.assertTrue('TypeCoercionTests' in self.currentConfig.machines)
        
     def test_imports_and_machines(self):
         setUpByFilename(self, 'test-YamlImport.yaml', machineName='Foo')
-        self.assertEqual(['MyMachine', 'TypeCoercionTests', 'Foo'], [machine for machine in self.currentConfig.machines])
+        self.assertTrue('MyMachine' in self.currentConfig.machines)
+        self.assertTrue('TypeCoercionTests' in self.currentConfig.machines)
+        self.assertTrue('Foo' in self.currentConfig.machines)
         
     def test_import_circular_fails(self):
         self.assertRaises(YamlFileCircularImportError, setUpByFilename, self, 'test-YamlImportCircular.yaml', machineName='Foo')

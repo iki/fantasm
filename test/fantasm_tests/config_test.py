@@ -732,7 +732,6 @@ class TestConfigDictionaryProcessing(unittest.TestCase):
             }
         )
         configuration = config.Configuration(self.baseDict)
-        self.assertEquals(len(configuration.machines), 2)
         self.assertEquals(configuration.machines[self.machineName].name, self.machineName)
         self.assertEquals(configuration.machines[otherMachineName].name, otherMachineName)
         
@@ -771,6 +770,11 @@ class TestConfigDictionaryProcessing(unittest.TestCase):
     def test_stateMachineAttributeRequired(self):
         self.assertRaises(exceptions.StateMachinesAttributeRequiredError, config.Configuration, {})
         
+    def test_builtInMachinesImported(self):
+        configuration = config.Configuration(self.baseDict)
+        self.assertTrue('fantasm-scrubber' in configuration.machines)
+        self.assertTrue('init' in configuration.machines['fantasm-scrubber'].states)
+        
 class TestYamlFileLocation(unittest.TestCase):
     
     def test_noYamlFileRaisesException(self):
@@ -780,8 +784,7 @@ class TestYamlFileLocation(unittest.TestCase):
         import os
         filename = os.path.join(os.path.dirname(__file__), 'yaml', 'test-TestYamlFileLocation.yaml')
         configuration = config.loadYaml(filename=filename)
-        self.assertEquals(len(configuration.machines), 1)
-        
+        self.assertTrue('MyMachine' in configuration.machines)
         
 class TestStatesWithAndWithoutDoActions(unittest.TestCase):
     

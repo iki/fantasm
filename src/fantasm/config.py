@@ -98,6 +98,8 @@ class Configuration(object):
     def __init__(self, configDict, importedAlready=None):
         """ Constructs the configuration from a dictionary of values. """
         
+        importedAlready = importedAlready or []
+        
         if constants.STATE_MACHINES_ATTRIBUTE not in configDict:
             raise exceptions.StateMachinesAttributeRequiredError()
         
@@ -106,13 +108,17 @@ class Configuration(object):
             self.rootUrl += '/'
             
         self.machines = {}
+        
+        # import built-in machines
+        self._importBuiltInMachines(importedAlready=importedAlready)
+        
         for machineDict in configDict[constants.STATE_MACHINES_ATTRIBUTE]:
             
             # bring in all the imported machines
             if machineDict.get(constants.IMPORT_ATTRIBUTE):
                 self._importYaml(machineDict[constants.IMPORT_ATTRIBUTE], importedAlready=importedAlready)
                 continue
-            
+                
             machine = _MachineConfig(machineDict, rootUrl=self.rootUrl)
             if machine.name in self.machines:
                 raise exceptions.MachineNameNotUniqueError(machine.name)
@@ -134,20 +140,38 @@ class Configuration(object):
                 
             self.machines[machine.name] = machine
             
+    def __addMachinesFromImportedConfig(self, importedCofig):
+        """ Adds new machines from an imported configuration. """
+        for machineName, machine in importedCofig.machines.items():
+            if machineName in self.machines:
+                raise exceptions.MachineNameNotUniqueError(machineName)
+            self.machines[machineName] = machine
+            
     def _importYaml(self, importYamlFile, importedAlready=None):
         """ Imports a yaml file """
-        importedAlready = importedAlready or []
         yamlFile = _findYaml(yamlNames=[importYamlFile])
         if not yamlFile:
             raise exceptions.YamlFileNotFoundError(importYamlFile)
         if yamlFile in importedAlready:
             raise exceptions.YamlFileCircularImportError(importYamlFile)
         importedAlready.append(yamlFile)
-        impConfig = loadYaml(filename=yamlFile, importedAlready=importedAlready)
-        for machineName, machine in impConfig.machines.items():
-            if machineName in self.machines:
-                raise exceptions.MachineNameNotUniqueError(machineName)
-            self.machines[machineName] = machine
+        importedConfig = loadYaml(filename=yamlFile, importedAlready=importedAlready)
+        self.__addMachinesFromImportedConfig(importedConfig)
+            
+    BUILTIN_MACHINES = (
+        'scrubber.yaml',
+    )
+            
+    def _importBuiltInMachines(self, importedAlready=None):
+        """ Imports built-in machines. """
+        directory = os.path.dirname(__file__)
+        for key in self.BUILTIN_MACHINES:
+            yamlFile = os.path.join(directory, key)
+            if yamlFile in importedAlready:
+                continue
+            importedAlready.append(yamlFile)
+            importedConfig = loadYaml(filename=yamlFile, importedAlready=importedAlready)
+            self.__addMachinesFromImportedConfig(importedConfig)
 
 def _resolveClass(className, namespace):
     """ Given a string representation of a class, locates and returns the class object. """

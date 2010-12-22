@@ -1,0 +1,67 @@
+
+state_machines:
+  
+- name: fantasm-scrubber
+  namespace: fantasm.scrubber
+  task_age_limit: 43200 # 12hrs
+  context_types:
+    age: int
+    before: datetime
+  states:
+  - name: init
+    action: InitalizeScrubber
+    initial: True
+    transitions:
+    - event: next
+      to: StartScrubberMachines
+  - name: StartScrubberMachines
+    action: StartScrubberMachines
+    final: True
+  
+- name: fantasm-scrubber-FantasmInstance
+  namespace: fantasm.scrubber
+  task_age_limit: 43200 # 12hrs
+  context_types:
+    before: datetime
+  states:
+  - name: scrub
+    action: Scrub_FantasmInstance
+    initial: True
+    continuation: True
+    final: True
+
+- name: fantasm-scrubber-FantasmLog
+  namespace: fantasm.scrubber
+  task_age_limit: 43200 # 12hrs
+  context_types:
+    before: datetime
+  states:
+  - name: scrub
+    action: Scrub_FantasmLog
+    initial: True
+    continuation: True
+    final: True
+
+- name: fantasm-scrubber-FantasmTaskSemaphore
+  namespace: fantasm.scrubber
+  task_age_limit: 43200 # 12hrs
+  context_types:
+    before: datetime
+  states:
+  - name: scrub
+    action: Scrub_FantasmTaskSemaphore
+    initial: True
+    continuation: True
+    final: True
+
+- name: fantasm-scrubber-FantasmFanIn
+  namespace: fantasm.scrubber
+  task_age_limit: 43200 # 12hrs
+  context_types:
+    before: datetime
+  states:
+  - name: scrub
+    action: Scrub_FantasmFanIn
+    initial: True
+    continuation: True
+    final: True
