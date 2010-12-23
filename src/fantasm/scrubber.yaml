@@ -1,7 +1,10 @@
+#
+# Machine to scrub old Fantasm entities
+#
 
 state_machines:
   
-- name: fantasm-scrubber
+- name: FantasmScrubber
   namespace: fantasm.scrubber
   task_age_limit: 43200 # 12hrs
   context_types:
@@ -13,55 +16,15 @@ state_machines:
     initial: True
     transitions:
     - event: next
-      to: StartScrubberMachines
-  - name: StartScrubberMachines
-    action: StartScrubberMachines
-    final: True
-  
-- name: fantasm-scrubber-FantasmInstance
-  namespace: fantasm.scrubber
-  task_age_limit: 43200 # 12hrs
-  context_types:
-    before: datetime
-  states:
-  - name: scrub
-    action: Scrub_FantasmInstance
-    initial: True
+      to: EnumerateFantasmModels
+  - name: EnumerateFantasmModels
+    action: EnumerateFantasmModels
     continuation: True
     final: True
-
-- name: fantasm-scrubber-FantasmLog
-  namespace: fantasm.scrubber
-  task_age_limit: 43200 # 12hrs
-  context_types:
-    before: datetime
-  states:
-  - name: scrub
-    action: Scrub_FantasmLog
-    initial: True
-    continuation: True
-    final: True
-
-- name: fantasm-scrubber-FantasmTaskSemaphore
-  namespace: fantasm.scrubber
-  task_age_limit: 43200 # 12hrs
-  context_types:
-    before: datetime
-  states:
-  - name: scrub
-    action: Scrub_FantasmTaskSemaphore
-    initial: True
-    continuation: True
-    final: True
-
-- name: fantasm-scrubber-FantasmFanIn
-  namespace: fantasm.scrubber
-  task_age_limit: 43200 # 12hrs
-  context_types:
-    before: datetime
-  states:
-  - name: scrub
-    action: Scrub_FantasmFanIn
-    initial: True
+    transitions:
+    - event: next
+      to: DeleteOldEntities
+  - name: DeleteOldEntities
+    action: DeleteOldEntities
     continuation: True
     final: True
