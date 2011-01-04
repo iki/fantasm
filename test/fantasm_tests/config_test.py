@@ -772,8 +772,8 @@ class TestConfigDictionaryProcessing(unittest.TestCase):
         
     def test_builtInMachinesImported(self):
         configuration = config.Configuration(self.baseDict)
-        self.assertTrue('fantasm-scrubber' in configuration.machines)
-        self.assertTrue('init' in configuration.machines['fantasm-scrubber'].states)
+        self.assertTrue('FantasmScrubber' in configuration.machines)
+        self.assertTrue('init' in configuration.machines['FantasmScrubber'].states)
         
 class TestYamlFileLocation(unittest.TestCase):
     
