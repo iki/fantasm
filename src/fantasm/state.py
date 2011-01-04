@@ -17,7 +17,6 @@ Copyright 2010 VendAsta Technologies Inc.
    limitations under the License.
 """
 
-import logging
 from fantasm import constants
 from fantasm.transition import Transition
 from fantasm.exceptions import UnknownEventError, InvalidEventNameRuntimeError
@@ -77,6 +76,7 @@ class State(object):
         try:
             return self._eventToTransition[event]
         except KeyError:
+            import logging
             logging.critical('Cannot find transition for event "%s". (Machine %s, State %s)',
                              event, self.machineName, self.name)
             raise UnknownEventError(event, self.machineName, self.name)
@@ -95,7 +95,7 @@ class State(object):
             try:
                 context.currentState.exitAction.execute(context, obj)
             except Exception:
-                logging.error('Error processing entry action for state. (Machine %s, State %s, exitAction %s)',
+                context.logger.error('Error processing entry action for state. (Machine %s, State %s, exitAction %s)',
                               context.machineName, 
                               context.currentState.name, 
                               context.currentState.exitAction.__class__)
@@ -106,7 +106,7 @@ class State(object):
         if transition.target.isFanIn:
             contextOrContexts = context.mergeJoinDispatch(event, obj)
             if not contextOrContexts:
-                logging.info('Fan-in resulted in 0 contexts. Terminating machine. (Machine %s, State %s)',
+                context.logger.info('Fan-in resulted in 0 contexts. Terminating machine. (Machine %s, State %s)',
                              context.machineName, 
                              context.currentState.name)
                 obj[constants.TERMINATED_PARAM] = True
@@ -117,7 +117,7 @@ class State(object):
             try:
                 context.currentState.entryAction.execute(contextOrContexts, obj)
             except Exception:
-                logging.error('Error processing entry action for state. (Machine %s, State %s, entryAction %s)',
+                context.logger.error('Error processing entry action for state. (Machine %s, State %s, entryAction %s)',
                               context.machineName, 
                               context.currentState.name, 
                               context.currentState.entryAction.__class__)
@@ -132,7 +132,7 @@ class State(object):
                 context.pop(constants.CONTINUATION_PARAM, None) # pop this off because it is really long
                 
             except Exception:
-                logging.error('Error processing continuation for state. (Machine %s, State %s, continuation %s)',
+                context.logger.error('Error processing continuation for state. (Machine %s, State %s, continuation %s)',
                               context.machineName, 
                               context.currentState.name, 
                               context.currentState.doAction.__class__)
@@ -147,7 +147,7 @@ class State(object):
             try:
                 nextEvent = context.currentState.doAction.execute(contextOrContexts, obj)
             except Exception:
-                logging.error('Error processing action for state. (Machine %s, State %s, Action %s)',
+                context.logger.error('Error processing action for state. (Machine %s, State %s, Action %s)',
                               context.machineName, 
                               context.currentState.name, 
                               context.currentState.doAction.__class__)

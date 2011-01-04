@@ -131,6 +131,24 @@ class FSMHandler(webapp.RequestHandler):
         """ Handles the POST request. """
         self.get_or_post(method='POST')
         
+    def initialize(self, request, response):
+        """Initializes this request handler with the given Request and Response."""
+        super(FSMHandler, self).initialize(request, response)
+        # pylint: disable-msg=W0201
+        # - this is the preferred location to initialize the handler in the webapp framework
+        self.fsm = None
+        
+    def handle_exception(self, exception, debug_mode): # pylint: disable-msg=C0103
+        """ Delegates logging to the FSMContext logger """
+        self.error(500)
+        if self.fsm:
+            self.fsm.logger.exception("FSMHandler caught Exception")
+        if debug_mode:
+            import traceback, sys, cgi
+            lines = ''.join(traceback.format_exception(*sys.exc_info()))
+            self.response.clear()
+            self.response.out.write('<pre>%s</pre>' % (cgi.escape(lines, quote=True)))
+        
     def get_or_post(self, method='POST'):
         """ Handles the GET/POST request. """
         
@@ -181,6 +199,7 @@ class FSMHandler(webapp.RequestHandler):
                                                 currentStateName=fsmState, 
                                                 instanceName=instanceName,
                                                 method=method)
+        self.fsm = fsm # used for logging in handle_exception
         
         # pull all the data off the url and stuff into the context
         for key, value in requestData.items():

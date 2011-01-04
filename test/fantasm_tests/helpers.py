@@ -13,6 +13,7 @@ from fantasm import config
 from fantasm.fsm import FSM
 from fantasm.handlers import FSMLogHandler
 from fantasm.handlers import FSMHandler
+from fantasm.log import LOG_URL
 from google.appengine.ext import webapp
 from google.appengine.api.taskqueue.taskqueue import TaskAlreadyExistsError
 
@@ -54,14 +55,16 @@ class TaskQueueDouble(object):
             for task in tasks:
                 if task.name in self.tasknames:
                     raise TaskAlreadyExistsError()
-                self.tasknames.add(task.name)
-            self.tasks.extend([(task, transactional) for task in tasks])
+                if task.url != LOG_URL: # avoid fragile unit tests
+                    self.tasknames.add(task.name)
+                    self.tasks.append((task, transactional))
         else:
             task = task_or_tasks
             if task.name in self.tasknames:
                 raise TaskAlreadyExistsError()
-            self.tasknames.add(task.name)
-            self.tasks.append((task, transactional))
+            if task.url != LOG_URL: # avoid fragile unit tests
+                self.tasknames.add(task.name)
+                self.tasks.append((task, transactional))
 
     def purge(self):
         """ purge all tasks in queue """

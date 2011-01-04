@@ -30,7 +30,6 @@ The Fan-out / Fan-in implementation is modeled after the presentation:
     http://code.google.com/events/io/2010/sessions/high-throughput-data-pipelines-appengine.html
 """
 
-import logging
 import datetime
 import random
 import copy
@@ -92,6 +91,7 @@ class FSM(object):
         @param currentConfig: a config._Configuration instance (dependency injection). if None, 
             then the factory uses config.currentConfiguration()
         """
+        import logging
         logging.info("Initializing FSM factory.")
         
         self.config = currentConfig or config.currentConfiguration()
@@ -382,7 +382,8 @@ class FSMContext(dict):
                 
                 except (TaskAlreadyExistsError, TombstonedTaskError):
                     # unlike a similar block in self.continutation, this is well off the happy path
-                    logging.critical('Unable to queue fork Tasks %s as it/they already exists. (Machine %s, State %s)',
+                    self.logger.critical(
+                                     'Unable to queue fork Tasks %s as it/they already exists. (Machine %s, State %s)',
                                      [task.name for task in tasks if not task.was_enqueued],
                                      self.machineName, 
                                      self.currentState.name)
@@ -401,7 +402,7 @@ class FSMContext(dict):
                     #        two states in the machine are executing simultaneously, which is may or may not
                     #        be a good thing, depending on what each state does. gracefully handling this 
                     #        exception at least means that this state will terminate.
-                    logging.critical('Unable to queue next Task as it already exists. (Machine %s, State %s)',
+                    self.logger.critical('Unable to queue next Task as it already exists. (Machine %s, State %s)',
                                      self.machineName, 
                                      self.currentState.name)
                     
@@ -409,7 +410,7 @@ class FSMContext(dict):
                 # if we're not in a final state, emit a log message
                 # FIXME - somehow we should avoid this message if we're in the "last" step of a continuation...
                 if not self.currentState.isFinalState and not obj.get(constants.TERMINATED_PARAM):
-                    logging.critical('Non-final state did not emit an event. Machine has terminated in an ' +
+                    self.logger.critical('Non-final state did not emit an event. Machine has terminated in an ' +
                                      'unknown state. (Machine %s, State %s)' %
                                      (self.machineName, self.currentState.name))
                 # if it is a final state, then dispatch the pseudo-final event to finalize the state machine
@@ -452,7 +453,7 @@ class FSMContext(dict):
             # this can happen when currentState.dispatch() previously succeeded in queueing the continuation
             # Task, but failed with the doAction.execute() call in a _previous_ execution of this Task.
             # NOTE: this prevent the dreaded "fork bomb" 
-            logging.info('Unable to queue continuation Task as it already exists. (Machine %s, State %s)',
+            self.logger.info('Unable to queue continuation Task as it already exists. (Machine %s, State %s)',
                           self.machineName, 
                           self.currentState.name)
     
@@ -592,12 +593,12 @@ class FSMContext(dict):
             if counter is None or int(counter) <= 2**15:
                 break
             time.sleep(busyWaitIterSecs)
-            logging.debug("Tried to acquire lock '%s' %d times...", lock, i + 1)
+            self.logger.debug("Tried to acquire lock '%s' %d times...", lock, i + 1)
         
         # FIXME: is there anything else that can be done? will work packages be lost? maybe queue another task
         #        to sweep up later?
         if i >= (busyWaitIters - 1): # pylint: disable-msg=W0631
-            logging.error("Gave up waiting for all fan-in work items.")
+            self.logger.error("Gave up waiting for all fan-in work items.")
         
         # at this point we could have two tasks trying to process the same work packages. in the
         # happy path this will not likely happen because the tasks are sent off with different ETAs,
@@ -652,7 +653,7 @@ class FSMContext(dict):
             # and delete the work packages - bearing in mind appengine limits
             maxDeleteSize = 250 # appengine does not like to delete > 500 models at a time, 250 is a nice safe number
             if len(fanInResults) > maxDeleteSize:
-                logging.warning("%d contexts in the current batch. Consider decreasing fan-in.", len(fanInResults))
+                self.logger.warning("%d contexts in the current batch. Consider decreasing fan-in.", len(fanInResults))
             i = 0
             while fanInResults[i:i+maxDeleteSize]:
                 db.delete(fanInResults[i:i+maxDeleteSize])
@@ -665,7 +666,7 @@ class FSMContext(dict):
             
             # FIXME: is there anything else that can be done? 
             if haveReadLock and deleted == memcache.DELETE_NETWORK_FAILURE:
-                logging.error("Unable to release the fan in read lock.")
+                self.logger.error("Unable to release the fan in read lock.")
                 
     def _getTaskRetryLimit(self):
         """ Method that returns the maximum number of retries for this particular dispatch 
@@ -692,14 +693,14 @@ class FSMContext(dict):
         
         if taskRetryLimit and retryCount >= taskRetryLimit:
             # need to permanently fail
-            logging.critical('Max-requeues reached. Machine has terminated in an unknown state. ' +
+            self.logger.critical('Max-requeues reached. Machine has terminated in an unknown state. ' +
                              '(Machine %s, State %s, Event %s)',
                              self.machineName, self.startingState.name, event, exc_info=True)
             # re-raise, letting App Engine TaskRetryOptions kill the task
             raise
         else:
             # re-raise the exception
-            logging.warning('Exception occurred processing event. Task will be retried. ' +
+            self.logger.warning('Exception occurred processing event. Task will be retried. ' +
                             '(Machine %s, State %s)',
                             self.machineName, self.startingState.name, exc_info=True)
             
@@ -713,7 +714,7 @@ class FSMContext(dict):
                         db.put(fanInResults[i:i+maxPutSize])
                         i += maxPutSize
                 except Exception:
-                    logging.critical("Unable to re.put() for workIndex = %s", self.fanInResults[0].workIndex)
+                    self.logger.critical("Unable to re.put() for workIndex = %s", self.fanInResults[0].workIndex)
                     raise
                 
             # this line really just allows unit tests to work - the request is really dead at this point
@@ -839,5 +840,6 @@ def startStateMachine(machineName, contexts, taskName=None, method='POST', count
     except (TaskAlreadyExistsError, TombstonedTaskError):
         # FIXME: what happens if _some_ of the tasks were previously enqueued?
         # normal result for idempotency
+        import logging
         logging.info('Unable to queue new machine %s with taskName %s as it has been previously enqueued.',
                       machineName, taskName)

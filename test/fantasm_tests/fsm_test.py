@@ -579,9 +579,9 @@ class DatastoreFSMContinuationTests(DatastoreFSMContinuationBaseTests):
             self.context.currentState.getTransition(event).target.doAction = RaiseExceptionContinuationAction()
             self.assertRaises(Exception, self.context.dispatch, event, TemporaryStateObject())
             self.assertEqual('state-initial', self.context.currentState.name)
-            self.assertEqual(4, len(self.mockQueue.tasks))
+            self.assertEqual(3, len(self.mockQueue.tasks))
             self.assertEqual('instanceName--continuation-1-1--state-initial--next-event--state-continuation--step-1', 
-                             self.mockQueue.tasks[-2][0].name)
+                             self.mockQueue.tasks[-1][0].name)
         finally:
             self.context.currentState.getTransition(event).target.doAction = originalAction # patch it back
         
@@ -590,11 +590,11 @@ class DatastoreFSMContinuationTests(DatastoreFSMContinuationBaseTests):
                          '(Machine DatastoreFSMContinuationTests, State state-continuation)', 
                          self.loggingDouble.messages['info'][-1])
         self.assertEqual('state-continuation', self.context.currentState.name)
-        self.assertEqual(5, len(self.mockQueue.tasks))
+        self.assertEqual(4, len(self.mockQueue.tasks))
         
         event = self.context.dispatch(event, TemporaryStateObject())
         self.assertEqual('state-final', self.context.currentState.name)
-        self.assertEqual(5, len(self.mockQueue.tasks))
+        self.assertEqual(4, len(self.mockQueue.tasks))
         
         self.assertEqual(None, event)
         

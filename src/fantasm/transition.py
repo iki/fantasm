@@ -17,8 +17,6 @@ Copyright 2010 VendAsta Technologies Inc.
    limitations under the License.
 """
 
-import logging
-
 class Transition(object):
     """ A transition object for a machine. """
     
@@ -49,7 +47,7 @@ class Transition(object):
             try:
                 self.action.execute(context, obj)
             except Exception:
-                logging.error('Error processing action for transition. (Machine %s, Transition %s, Action %s)',
+                context.logger.error('Error processing action for transition. (Machine %s, Transition %s, Action %s)',
                               context.machineName, 
                               self.name, 
                               self.action.__class__)

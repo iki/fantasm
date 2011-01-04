@@ -5,6 +5,7 @@ from fantasm.fsm import FSM
 from fantasm.models import _FantasmLog
 from fantasm_tests.helpers import setUpByFilename
 from fantasm_tests.helpers import runQueuedTasks
+from fantasm.log import LOG_ERROR_MESSAGE
 
 import logging
 
@@ -67,3 +68,15 @@ class LoggerTest(AppEngineTestCase):
         runQueuedTasks(queueName=self.context.queueName)
         self.assertEqual(3, _FantasmLog.all().count())
         
+    def test_logging_object(self):
+        self.context.logger.info({'a': 'b'})
+        runQueuedTasks(queueName=self.context.queueName)
+        self.assertEqual("{'a': 'b'}", _FantasmLog.all().get().message)
+        
+    def test_logging_bad_object(self):
+        class StrRaises(object):
+            def __str__(self):
+                raise Exception()
+        self.context.logger.info(StrRaises())
+        runQueuedTasks(queueName=self.context.queueName)
+        self.assertEqual(LOG_ERROR_MESSAGE, _FantasmLog.all().get().message)

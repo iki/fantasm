@@ -26,6 +26,7 @@ from fantasm.models import _FantasmLog
 from google.appengine.api.taskqueue import taskqueue
 
 LOG_URL = '/fantasm/log/'
+LOG_ERROR_MESSAGE = 'Exception constructing log message. Please adjust your usage of context.logger.'
 
 def _log(instanceName, level, namespace, tags, message, stack, time, *args, **kwargs): # pylint: disable-msg=W0613
     """ Creates a _FantasmLog that can be used for debugging 
@@ -42,7 +43,7 @@ def _log(instanceName, level, namespace, tags, message, stack, time, *args, **kw
     _FantasmLog(instanceName=instanceName, 
                         level=level,
                         namespace=namespace,
-                        tags=tags or [],
+                        tags=list(set(tags)) or [],
                         message=message % args, 
                         stack=stack,
                         time=time).put()
@@ -55,6 +56,7 @@ class Logger( object ):
         self.context = context
         self.level = logging.DEBUG
         self.maxLevel = logging.CRITICAL
+        self.tags = []
     
     def _log(self, level, namespace, tags, message, *args, **kwargs):
         """ Logs the message to the normal logging module and also queues a Task to create an _FantasmLog
@@ -73,11 +75,22 @@ class Logger( object ):
             f = StringIO.StringIO()
             traceback.print_exc(25, f)
             stack = f.getvalue()
+            
+        # this _log method requires everything to be serializable, which is not the case for the logging
+        # module. if message is not a basestring, then we simply cast it to a string to allow _something_
+        # to be logged in the deferred task
+        if not isinstance(message, basestring):
+            try:
+                message = str(message)
+            except Exception:
+                message = LOG_ERROR_MESSAGE
+                logging.warning(message, exc_info=True)
+            
         serialized = deferred.serialize(_log,
                                         self.context.instanceName,
                                         level,
                                         namespace,
-                                        tags,
+                                        (self.tags or []) + (tags or []),
                                         message,
                                         stack,
                                         datetime.datetime.now(),
@@ -85,7 +98,8 @@ class Logger( object ):
                                         **kwargs)
         
         try:
-            task = taskqueue.Task(url=LOG_URL, payload=serialized)
+            task = taskqueue.Task(url=LOG_URL, payload=serialized, 
+                                  retry_options=taskqueue.TaskRetryOptions(task_retry_limit=20))
             # FIXME: a batch add may be more optimal, but there are quite a few more corners to deal with
             taskqueue.Queue().add(task)
             
