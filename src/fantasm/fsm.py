@@ -227,14 +227,15 @@ class FSM(object):
                           machineName=machineName, instanceName=instanceName,
                           retryOptions=retryOptions, url=url, queueName=queueName,
                           data=data, contextTypes=machineConfig.contextTypes,
-                          method=method)
+                          method=method,
+                          persistentLogging=(machineConfig.logging == constants.LOGGING_PERSISTENT))
 
 class FSMContext(dict):
     """ A finite state machine context instance. """
     
     def __init__(self, initialState, currentState=None, machineName=None, instanceName=None,
                  retryOptions=None, url=None, queueName=None, data=None, contextTypes=None,
-                 method='GET'):
+                 method='GET', persistentLogging=False):
         """ Constructor
         
         @param initialState: a State instance 
@@ -244,10 +245,14 @@ class FSMContext(dict):
         @param retryOptions: the TaskRetryOptions for the machine
         @param url: the url of the fsm  
         @param queueName: the name of the appengine task queue 
+        @param persistentLogging: if True, use persistent _FantasmLog model
         """
         super(FSMContext, self).__init__(data or {})
         self.initialState = initialState
         self.currentState = currentState
+        self.currentAction = None
+        if currentState:
+            self.currentAction = currentState.exitAction 
         self.machineName = machineName
         self.instanceName = instanceName or self._generateUniqueInstanceName()
         self.queueName = queueName
@@ -259,7 +264,7 @@ class FSMContext(dict):
         self.contextTypes = constants.PARAM_TYPES.copy()
         if contextTypes:
             self.contextTypes.update(contextTypes)
-        self.logger = Logger(self)
+        self.logger = Logger(self, persistentLogging=persistentLogging)
         self.__obj = None
         
     def _generateUniqueInstanceName(self):

@@ -60,6 +60,7 @@ class LoggingTests( RunTasksBaseTest ):
     def setUp(self):
         super(LoggingTests, self).setUp()
         self.context.initialize()
+        self.context.logger.persistentLogging = True
         
     def test_FantasmInstance(self):
         self.assertEqual(1, _FantasmInstance.all().count())

@@ -43,54 +43,68 @@ def outputTransitionConfig(transitionConfig):
     label = transitionConfig.event
     if transitionConfig.action:
         label += '/ ' + outputAction(transitionConfig.action)
-    return '"%s" -> "%s" [label="%s"];' % \
-            (transitionConfig.fromState.name, 
-             transitionConfig.toState.name, 
-             label)
+    return '"%(fromState)s" -> "%(toState)s" [label="%(label)s"];' % \
+            {'fromState': transitionConfig.fromState.name, 
+             'toState': transitionConfig.toState.name, 
+             'label': label}
             
-def outputStateConfig(stateConfig):
+def outputStateConfig(stateConfig, colorMap=None):
     """ Outputs a GraphViz directed graph node
     
     @param stateConfig: a config._StateConfig instance
     @return: a string
     """
+    colorMap = colorMap or {}
     actions = []
     if stateConfig.entry:
-        actions.append('entry/ %s' % outputAction(stateConfig.entry))
+        actions.append('entry/ %(entry)s' % {'entry': outputAction(stateConfig.entry)})
     if stateConfig.action:
-        actions.append('do/ %s' % outputAction(stateConfig.action))
+        actions.append('do/ %(do)s' % {'do': outputAction(stateConfig.action)})
     if stateConfig.exit:
-        actions.append('exit/ %s' % outputAction(stateConfig.exit))
-    label = '%s|%s' % (stateConfig.name, '\\l'.join(actions))
+        actions.append('exit/ %(exit)s' % {'exit': outputAction(stateConfig.exit)})
+    label = '%(stateName)s|%(actions)s' % {'stateName': stateConfig.name, 'actions': '\\l'.join(actions)}
     if stateConfig.continuation:
         label += '|continuation = True'
     if stateConfig.fanInPeriod != constants.NO_FAN_IN:
-        label += '|fan in period = %ds' % stateConfig.fanInPeriod
+        label += '|fan in period = %(fanin)ds' % {'fanin': stateConfig.fanInPeriod}
     shape = 'Mrecord'
-    return '"%s" [shape=%s,label="{%s}"];' % \
-           (stateConfig.name,
-            shape,
-            label)
+    if colorMap.get(stateConfig.name):
+        return '"%(stateName)s" [style=filled,fillcolor="%(fillcolor)s",shape=%(shape)s,label="{%(label)s}"];' % \
+               {'stateName': stateConfig.name,
+                'fillcolor': colorMap.get(stateConfig.name, 'white'),
+                'shape': shape,
+                'label': label}
+    else:
+        return '"%(stateName)s" [shape=%(shape)s,label="{%(label)s}"];' % \
+               {'stateName': stateConfig.name,
+                'shape': shape,
+                'label': label}
 
-def outputMachineConfig(machineConfig):
+def outputMachineConfig(machineConfig, colorMap=None, skipStateNames=None):
     """ Outputs a GraphViz directed graph of the state machine 
     
     @param machineConfig: a config._MachineConfig instance
     @return: a string
     """
+    skipStateNames = skipStateNames or ()
     lines = []
     lines.append('digraph G {')
-    lines.append('label="%s"' % machineConfig.name)
+    lines.append('label="%(machineName)s"' % {'machineName': machineConfig.name})
     lines.append('labelloc="t"')
     lines.append('"__start__" [label="start",shape=circle,style=filled,fillcolor=black,fontcolor=white,fontsize=9];')
     lines.append('"__end__" [label="end",shape=doublecircle,style=filled,fillcolor=black,fontcolor=white,fontsize=9];')
     for stateConfig in machineConfig.states.values():
-        lines.append(outputStateConfig(stateConfig))
+        if stateConfig.name in skipStateNames:
+            continue
+        lines.append(outputStateConfig(stateConfig, colorMap=colorMap))
         if stateConfig.initial:
-            lines.append('"__start__" -> "%s"' % stateConfig.name)
+            lines.append('"__start__" -> "%(stateName)s"' % {'stateName': stateConfig.name})
         if stateConfig.final:
-            lines.append('"%s" -> "__end__"' % stateConfig.name)
+            lines.append('"%(stateName)s" -> "__end__"' % {'stateName': stateConfig.name})
     for transitionConfig in machineConfig.transitions.values():
+        if transitionConfig.fromState.name in skipStateNames or \
+           transitionConfig.toState.name in skipStateNames:
+            continue
         lines.append(outputTransitionConfig(transitionConfig))
     lines.append('}')
     return '\n'.join(lines) 

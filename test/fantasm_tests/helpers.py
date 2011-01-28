@@ -14,6 +14,7 @@ from fantasm.fsm import FSM
 from fantasm.handlers import FSMLogHandler
 from fantasm.handlers import FSMHandler
 from fantasm.log import LOG_URL
+from fantasm.log import Logger
 from google.appengine.ext import webapp
 from google.appengine.api.taskqueue.taskqueue import TaskAlreadyExistsError
 
@@ -75,26 +76,33 @@ class LoggingDouble(object):
     def __init__(self):
         self.count = defaultdict(int)
         self.messages = defaultdict(list)
+        
+    def _log(self, level, message, *args, **kwargs):
+        self.count[level] += 1
+        if not isinstance(message, basestring):
+            try:
+                message = str(message)
+            except Exception, e:
+                message = 'logging error'
+                args = ()
+        self.messages[level].append(message % args)
 
     def debug(self, message, *args, **kwargs):
-        self.count['debug'] += 1
-        self.messages['debug'].append(message % args)
+        self._log('debug', message, *args, **kwargs)
 
     def info(self, message, *args, **kwargs):
-        self.count['info'] += 1
-        self.messages['info'].append(message % args)
+        self._log('info', message, *args, **kwargs)
 
     def warning(self, message, *args, **kwargs):
-        self.count['warning'] += 1
-        self.messages['warning'].append(message % args)
+        self._log('warning', message, *args, **kwargs)
+        
+    warn = warning
 
     def error(self, message, *args, **kwargs):
-        self.count['error'] += 1
-        self.messages['error'].append(message % args)
+        self._log('error', message, *args, **kwargs)
         
     def critical(self, message, *args, **kwargs):
-        self.count['critical'] += 1
-        self.messages['critical'].append(message % args)
+        self._log('critical', message, *args, **kwargs)
 
 def getLoggingDouble():
     """ Creates a logging double and wires it up with minimock. 
@@ -110,6 +118,13 @@ def getLoggingDouble():
     mock(name='logging.warning', returns_func=loggingDouble.warning, tracker=None)
     mock(name='logging.error', returns_func=loggingDouble.error, tracker=None)
     mock(name='logging.critical', returns_func=loggingDouble.critical, tracker=None)
+    def getLoggingMap():
+        return { logging.CRITICAL: logging.critical,
+                 logging.ERROR: logging.error,
+                 logging.WARNING: logging.warning,
+                 logging.INFO: logging.info,
+                 logging.DEBUG: logging.debug }
+    mock(name='Logger.getLoggingMap', returns_func=getLoggingMap, tracker=None)
     return loggingDouble
 
 def runQueuedTasks(queueName='default', assertTasks=True):

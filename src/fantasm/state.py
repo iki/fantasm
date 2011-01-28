@@ -93,6 +93,7 @@ class State(object):
         
         if context.currentState.exitAction:
             try:
+                context.currentAction = context.currentState.exitAction
                 context.currentState.exitAction.execute(context, obj)
             except Exception:
                 context.logger.error('Error processing entry action for state. (Machine %s, State %s, exitAction %s)',
@@ -115,6 +116,7 @@ class State(object):
         
         if context.currentState.entryAction:
             try:
+                context.currentAction = context.currentState.entryAction
                 context.currentState.entryAction.execute(contextOrContexts, obj)
             except Exception:
                 context.logger.error('Error processing entry action for state. (Machine %s, State %s, entryAction %s)',
@@ -145,6 +147,7 @@ class State(object):
         nextEvent = None
         if context.currentState.doAction:
             try:
+                context.currentAction = context.currentState.doAction
                 nextEvent = context.currentState.doAction.execute(contextOrContexts, obj)
             except Exception:
                 context.logger.error('Error processing action for state. (Machine %s, State %s, Action %s)',

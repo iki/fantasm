@@ -95,6 +95,10 @@ class _FantasmInstance( db.Model ):
 class _FantasmLog( db.Model ):
     """ A model used to store log messages """
     instanceName = db.StringProperty()
+    machineName = db.StringProperty()
+    stateName = db.StringProperty()
+    actionName = db.StringProperty()
+    transitionName = db.StringProperty()
     time = db.DateTimeProperty()
     level = db.IntegerProperty()
     message = db.TextProperty()

@@ -88,7 +88,7 @@ class FSMGraphvizHandler(webapp.RequestHandler):
         """ Handles the GET request. """
         from fantasm.utils import outputMachineConfig
         machineConfig = getMachineConfig(self.request)
-        content = outputMachineConfig(machineConfig)
+        content = outputMachineConfig(machineConfig, skipStateNames=[self.request.GET.get('skipStateName')])
         if self.request.GET.get('type', 'png') == 'png':
             self.response.out.write(
 """
@@ -199,6 +199,9 @@ class FSMHandler(webapp.RequestHandler):
                                                 currentStateName=fsmState, 
                                                 instanceName=instanceName,
                                                 method=method)
+        
+        # pylint: disable-msg=W0201
+        # - initialized outside of ctor is ok in this case
         self.fsm = fsm # used for logging in handle_exception
         
         # pull all the data off the url and stuff into the context

@@ -237,6 +237,11 @@ class _MachineConfig(object):
         self.queueName = initDict.get(constants.MACHINE_QUEUE_NAME_ATTRIBUTE, constants.DEFAULT_QUEUE_NAME)
         self.namespace = initDict.get(constants.NAMESPACE_ATTRIBUTE)
         
+        # logging
+        self.logging = initDict.get(constants.MACHINE_LOGGING_NAME_ATTRIBUTE, constants.LOGGING_DEFAULT)
+        if self.logging not in constants.VALID_LOGGING_VALUES:
+            raise exceptions.InvalidLoggingError(self.name, self.logging)
+        
         # machine task_retry_limit, min_backoff_seconds, max_backoff_seconds, task_age_limit, max_doublings
         for (constant, attribute, default, exception) in TASK_ATTRIBUTES:
             setattr(self, attribute, default)

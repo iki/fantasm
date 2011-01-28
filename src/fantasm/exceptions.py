@@ -255,6 +255,14 @@ class MaxRetriesAndTaskRetryLimitMutuallyExclusiveError(ConfigurationError):
         message = 'max_retries and task_retry_limit cannot both be specified on a machine. (Machine %s)' % \
                   machineName
         super(MaxRetriesAndTaskRetryLimitMutuallyExclusiveError, self).__init__(message)
+        
+class InvalidLoggingError(ConfigurationError):
+    """ The logging value was not valid. """
+    def __init__(self, machineName, loggingValue):
+        """ Initialize exception """
+        message = 'logging attribute "%s" is invalid (must be one of "%s"). (Machine %s)' % \
+                  (loggingValue, constants.VALID_LOGGING_VALUES, machineName)
+        super(InvalidLoggingError, self).__init__(message)
 
 class TransitionNameRequiredError(ConfigurationError):
     """ Each transition requires a name. """
