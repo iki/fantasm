@@ -172,7 +172,7 @@ class FSMContextMergeJoinTests(AppEngineTestCase):
         super(FSMContextMergeJoinTests, self).setUp()
         self.state = State('foo', None, CountExecuteCalls(), None)
         self.state2 = State('foo2', None, CountExecuteCallsWithFork(), None)
-        self.state.addTransition(Transition('t1', self.state2), 'event')
+        self.state.addTransition(Transition('t1', self.state2, 'queueName'), 'event')
         self.context = FSMContext(self.state, 
                                   currentState=self.state, 
                                   machineName='machineName', 

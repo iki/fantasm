@@ -234,7 +234,7 @@ class _MachineConfig(object):
             raise exceptions.InvalidMachineAttributeError(self.name, badAttributes)
             
         # machine queue, namespace
-        self.queueName = initDict.get(constants.MACHINE_QUEUE_NAME_ATTRIBUTE, constants.DEFAULT_QUEUE_NAME)
+        self.queueName = initDict.get(constants.QUEUE_NAME_ATTRIBUTE, constants.DEFAULT_QUEUE_NAME)
         self.namespace = initDict.get(constants.NAMESPACE_ATTRIBUTE)
         
         # logging
@@ -454,6 +454,9 @@ class _TransitionConfig(object):
         
         # transition namespace
         self.namespace = transDict.get(constants.NAMESPACE_ATTRIBUTE, machine.namespace)
+        
+        # transition queue name
+        self.queueName = transDict.get(constants.QUEUE_NAME_ATTRIBUTE, machine.queueName)
 
         # transition task_retry_limit, min_backoff_seconds, max_backoff_seconds, task_age_limit, max_doublings
         # W0612:439:_TransitionConfig.__init__: Unused variable 'default'

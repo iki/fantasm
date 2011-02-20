@@ -117,13 +117,13 @@ class FSM(object):
                 
                 # add the transition from pseudo-init to initialState
                 if state.isInitialState:
-                    transition = Transition(FSM.PSEUDO_INIT, state, 
+                    transition = Transition(FSM.PSEUDO_INIT, state, machineConfig.queueName,
                                             retryOptions = self._buildRetryOptions(machineConfig))
                     self.pseudoInits[machineConfig.name].addTransition(transition, FSM.PSEUDO_INIT)
                     
                 # add the transition from finalState to pseudo-final
                 if state.isFinalState:
-                    transition = Transition(FSM.PSEUDO_FINAL, pseudoFinal,
+                    transition = Transition(FSM.PSEUDO_FINAL, pseudoFinal, machineConfig.queueName,
                                             retryOptions = self._buildRetryOptions(machineConfig))
                     state.addTransition(transition, FSM.PSEUDO_FINAL)
                     
@@ -191,7 +191,8 @@ class FSM(object):
         retryOptions = self._buildRetryOptions(transitionConfig)
         countdown = transitionConfig.countdown
         
-        return Transition(transitionConfig.name, target, action=transitionConfig.action,
+        return Transition(transitionConfig.name, target, transitionConfig.queueName, 
+                          action=transitionConfig.action,
                           countdown=countdown, retryOptions=retryOptions)
         
     def createFSMInstance(self, machineName, currentStateName=None, instanceName=None, data=None, method='GET'):

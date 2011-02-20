@@ -20,17 +20,19 @@ Copyright 2010 VendAsta Technologies Inc.
 class Transition(object):
     """ A transition object for a machine. """
     
-    def __init__(self, name, target, action=None, countdown=0, retryOptions=None):
+    def __init__(self, name, target, queueName, action=None, countdown=0, retryOptions=None):
         """ Constructor 
         
         @param name: the name of the Transition instance
         @param target: a State instance
+        @param queueName: the name of the queue for the transition
         @param action: the optional action for a state
         @param countdown: the number of seconds to wait before firing this transition. Default 0.
         @param retryOptions: the TaskRetryOptions for this transition
         """
         self.target = target
         self.name = name
+        self.queueName = queueName
         self.action = action
         self.countdown = countdown
         self.retryOptions = retryOptions
