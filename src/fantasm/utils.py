@@ -17,7 +17,15 @@ Copyright 2010 VendAsta Technologies Inc.
    limitations under the License.
 """
 from fantasm import constants
+from google.appengine.api.taskqueue.taskqueue import Queue
 
+class NoOpQueue( Queue ):
+    """ A Queue instance that does not Queue """
+    
+    def add(self, task, transactional=False):
+        """ see taskqueue.Queue.add """
+        pass
+       
 def knuthHash(number):
     """A decent hash function for integers."""
     return (number * 2654435761) % 2**32

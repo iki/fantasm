@@ -19,14 +19,16 @@ Copyright 2010 VendAsta Technologies Inc.
 
 import time
 import logging
+from django.utils import simplejson
 from google.appengine.ext import deferred, webapp, db
 from google.appengine.api.capabilities import CapabilitySet
 from fantasm import config, constants
 from fantasm.fsm import FSM
+from fantasm.utils import NoOpQueue
 from fantasm.constants import NON_CONTEXT_PARAMS, STATE_PARAM, EVENT_PARAM, INSTANCE_NAME_PARAM, TASK_NAME_PARAM, \
-                              RETRY_COUNT_PARAM, STARTED_AT_PARAM
+                              RETRY_COUNT_PARAM, STARTED_AT_PARAM, IMMEDIATE_MODE_PARAM, MESSAGES_PARAM
 from fantasm.exceptions import UnknownMachineError, RequiredServicesUnavailableRuntimeError, FSMRuntimeError
-from fantasm.models import _FantasmTaskSemaphore
+from fantasm.models import _FantasmTaskSemaphore, Encoder
 
 REQUIRED_SERVICES = ('memcache', 'datastore_v3', 'taskqueue')
 
@@ -194,11 +196,22 @@ class FSMHandler(webapp.RequestHandler):
         assert (fsmState and instanceName) or True # if we have a state, we should have an instanceName
         assert (fsmState and fsmEvent) or True # if we have a state, we should have an event
         
+        obj = TemporaryStateObject()
+        
         # make a copy, add the data
         fsm = getCurrentFSM().createFSMInstance(machineName, 
                                                 currentStateName=fsmState, 
                                                 instanceName=instanceName,
-                                                method=method)
+                                                method=method,
+                                                obj=obj)
+        
+        # in "immediate mode" we try to execute as much as possible in the current request
+        # for the time being, this does not include things like fork/spawn/contuniuations/fan-in
+        immediateMode = IMMEDIATE_MODE_PARAM in requestData.keys()
+        if immediateMode:
+            obj[IMMEDIATE_MODE_PARAM] = immediateMode
+            obj[MESSAGES_PARAM] = []
+            fsm.Queue = NoOpQueue # don't queue anything else
         
         # pylint: disable-msg=W0201
         # - initialized outside of ctor is ok in this case
@@ -228,11 +241,11 @@ class FSMHandler(webapp.RequestHandler):
             
             # just queue up a task to run the initial state transition using retries
             fsm[STARTED_AT_PARAM] = time.time()
-            fsm.initialize()
+            
+            # initialize the fsm, which returns the 'pseudo-init' event
+            fsmEvent = fsm.initialize()
             
         else:
-            
-            obj = TemporaryStateObject()
             
             # add the retry counter into the machine context from the header
             obj[RETRY_COUNT_PARAM] = retryCount
@@ -240,8 +253,20 @@ class FSMHandler(webapp.RequestHandler):
             # add the actual task name to the context
             obj[TASK_NAME_PARAM] = taskName
             
-            # dispatch
-            fsm.dispatch(fsmEvent, obj)
+            # dispatch and return the next event
+            fsmEvent = fsm.dispatch(fsmEvent, obj)
+            
+        # loop and execute until there are no more events - any exceptions
+        # will make it out to the user in the response - useful for debugging
+        if immediateMode:
+            while fsmEvent:
+                fsmEvent = fsm.dispatch(fsmEvent, obj)
+            self.response.headers['Content-Type'] = 'application/json'
+            data = {
+                'obj' : obj,
+                'context': fsm,
+            }
+            self.response.out.write(simplejson.dumps(data, cls=Encoder))
 
     def __isFirstExecution(self, taskName, retryCount):
         """ Ensures that the task has not been executed before. Meant to be run in a transaction. """

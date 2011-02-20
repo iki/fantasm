@@ -23,6 +23,7 @@ import traceback
 import StringIO
 from google.appengine.ext import deferred
 from fantasm.models import _FantasmLog
+from fantasm import constants
 from google.appengine.api.taskqueue import taskqueue
 
 LOG_URL = '/fantasm/log/'
@@ -70,13 +71,19 @@ class Logger( object ):
         logging.DEBUG: logging.debug
     }
     
-    def __init__(self, context, persistentLogging=False):
-        """ Constructor """
+    def __init__(self, context, obj=None, persistentLogging=False):
+        """ Constructor 
+        
+        @param context:
+        @param obj:
+        @param persistentLogging:
+        """
         self.context = context
         self.level = logging.DEBUG
         self.maxLevel = logging.CRITICAL
         self.tags = []
         self.persistentLogging = persistentLogging
+        self.__obj = obj
         
     def getLoggingMap(self):
         """ One layer of indirection to fetch self._LOGGING_MAP (required for minimock to work) """
@@ -133,6 +140,12 @@ class Logger( object ):
         actionName = None
         if self.context.currentAction:
             actionName = self.context.currentAction.__class__.__name__
+            
+        # in immediateMode, tack the messages onto obj so that they can be returned
+        # in the http response in handler.py
+        if self.__obj is not None:
+            if self.__obj.get(constants.IMMEDIATE_MODE_PARAM):
+                self.__obj[constants.MESSAGES_PARAM].append(message)
                 
         serialized = deferred.serialize(_log,
                                         self.context.instanceName,
@@ -157,6 +170,9 @@ class Logger( object ):
             
         except taskqueue.TaskTooLargeError:
             logging.warning("fantasm log message too large - skipping persistent storage")
+            
+        except taskqueue.Error:
+            logging.warning("error queuing log message Task - skipping persistent storage", exc_info=True)
         
     def setLevel(self, level):
         """ Sets the minimum logging level to log 

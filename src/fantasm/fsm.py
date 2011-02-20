@@ -35,7 +35,7 @@ import random
 import copy
 import time
 from django.utils import simplejson
-from google.appengine.api.taskqueue.taskqueue import Task, Queue, TaskAlreadyExistsError, TombstonedTaskError, \
+from google.appengine.api.taskqueue.taskqueue import Task, TaskAlreadyExistsError, TombstonedTaskError, \
                                                      TaskRetryOptions
 from google.appengine.ext import db
 from google.appengine.api import memcache
@@ -194,12 +194,16 @@ class FSM(object):
         return Transition(transitionConfig.name, target, action=transitionConfig.action,
                           countdown=countdown, retryOptions=retryOptions)
         
-    def createFSMInstance(self, machineName, currentStateName=None, instanceName=None, data=None, method='GET'):
+    def createFSMInstance(self, machineName, currentStateName=None, instanceName=None, data=None, method='GET',
+                          obj=None):
         """ Creates an FSMContext instance with non-initialized data 
         
         @param machineName: the name of FSMContext to instantiate, as defined in fsm.yaml 
         @param currentStateName: the name of the state to place the FSMContext into
         @param instanceName: the name of the current instance
+        @param data: a dict or FSMContext
+        @param method: 'GET' or 'POST'
+        @param obj: an object that the FSMContext can operate on
         @raise UnknownMachineError: if machineName is unknown
         @raise UnknownStateError: is currentState name is not None and unknown in machine with name machineName
         @return: an FSMContext instance
@@ -228,14 +232,15 @@ class FSM(object):
                           retryOptions=retryOptions, url=url, queueName=queueName,
                           data=data, contextTypes=machineConfig.contextTypes,
                           method=method,
-                          persistentLogging=(machineConfig.logging == constants.LOGGING_PERSISTENT))
+                          persistentLogging=(machineConfig.logging == constants.LOGGING_PERSISTENT),
+                          obj=obj)
 
 class FSMContext(dict):
     """ A finite state machine context instance. """
     
     def __init__(self, initialState, currentState=None, machineName=None, instanceName=None,
                  retryOptions=None, url=None, queueName=None, data=None, contextTypes=None,
-                 method='GET', persistentLogging=False):
+                 method='GET', persistentLogging=False, obj=None):
         """ Constructor
         
         @param initialState: a State instance 
@@ -246,6 +251,7 @@ class FSMContext(dict):
         @param url: the url of the fsm  
         @param queueName: the name of the appengine task queue 
         @param persistentLogging: if True, use persistent _FantasmLog model
+        @param obj: an object that the FSMContext can operate on  
         """
         super(FSMContext, self).__init__(data or {})
         self.initialState = initialState
@@ -264,8 +270,12 @@ class FSMContext(dict):
         self.contextTypes = constants.PARAM_TYPES.copy()
         if contextTypes:
             self.contextTypes.update(contextTypes)
-        self.logger = Logger(self, persistentLogging=persistentLogging)
-        self.__obj = None
+        self.logger = Logger(self, obj=obj, persistentLogging=persistentLogging)
+        self.__obj = obj
+        
+        # the following is monkey-patched from handler.py for 'immediate mode'
+        from google.appengine.api.taskqueue.taskqueue import Queue
+        self.Queue = Queue # pylint: disable-msg=C0103
         
     def _generateUniqueInstanceName(self):
         """ Generates a unique instance name for this machine. 
@@ -347,7 +357,7 @@ class FSMContext(dict):
         """
         self[constants.STEPS_PARAM] = 0
         task = self.generateInitializationTask()
-        Queue(name=self.queueName).add(task)
+        self.Queue(name=self.queueName).add(task)
         _FantasmInstance(key_name=self.instanceName, instanceName=self.instanceName).put()
         
         return FSM.PSEUDO_INIT
@@ -360,7 +370,7 @@ class FSMContext(dict):
         @return: an event string to dispatch to the FSMContext
         """
         
-        self.__obj = obj # hold the obj object for use during this context
+        self.__obj = self.__obj or obj # hold the obj object for use during this context
 
         # store the starting state and event for the handleEvent() method
         self.startingState = self.currentState
@@ -383,7 +393,7 @@ class FSMContext(dict):
                 
                 try:
                     if tasks:
-                        Queue(name=self.queueName).add(tasks)
+                        self.Queue(name=self.queueName).add(tasks)
                 
                 except (TaskAlreadyExistsError, TombstonedTaskError):
                     # unlike a similar block in self.continutation, this is well off the happy path
@@ -499,7 +509,7 @@ class FSMContext(dict):
         task = Task(name=taskName, method=self.method, url=url, params=params, countdown=countdown,
                     retry_options=retryOptions)
         if queue:
-            Queue(name=self.queueName).add(task)
+            self.Queue(name=self.queueName).add(task)
         
         return task
     
@@ -559,7 +569,7 @@ class FSMContext(dict):
                         url=url,
                         params=params,
                         eta=datetime.datetime.utcfromtimestamp(now) + datetime.timedelta(seconds=fanInPeriod))
-            Queue(name=self.queueName).add(task)
+            self.Queue(name=self.queueName).add(task)
             return task
         except (TaskAlreadyExistsError, TombstonedTaskError):
             pass # Fan-in magic
@@ -841,6 +851,7 @@ def startStateMachine(machineName, contexts, taskName=None, method='POST', count
 
     queueName = instances[0].queueName # same machineName, same queues
     try:
+        from google.appengine.api.taskqueue.taskqueue import Queue
         Queue(name=queueName).add(tasks)
     except (TaskAlreadyExistsError, TombstonedTaskError):
         # FIXME: what happens if _some_ of the tasks were previously enqueued?

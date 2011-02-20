@@ -26,6 +26,8 @@ def decode(dct):
     """ Special handler for db.Key/datetime.datetime decoding """
     if '__db.Key__' in dct:
         return db.Key(dct['key'])
+    if '__db.Model__' in dct:
+        return db.Key(dct['key']) # turns into a db.Key across serialization
     if '__datetime.datetime__' in dct:
         return datetime.datetime(**dct['datetime'])
     return dct
@@ -38,6 +40,8 @@ class Encoder(simplejson.JSONEncoder): # pylint: disable-msg=W0232
         """ see simplejson.JSONEncoder.default """
         if isinstance(obj, db.Key):
             return {'__db.Key__': True, 'key': str(obj)}
+        if isinstance(obj, db.Model):
+            return {'__db.Model__': True, 'key': str(obj.key())} # turns into a db.Key across serialization
         if isinstance(obj, datetime.datetime) and \
            obj.tzinfo is None: # only UTC datetime objects are supported
             return {'__datetime.datetime__': True, 'datetime': {'year': obj.year,

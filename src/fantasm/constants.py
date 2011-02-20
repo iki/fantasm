@@ -30,8 +30,11 @@ TASK_NAME_PARAM = '__tn__'
 FAN_IN_RESULTS_PARAM = '__fi__'
 RETRY_COUNT_PARAM = '__rc__'
 FORKED_CONTEXTS_PARAM = '__fc__'
+IMMEDIATE_MODE_PARAM = '__im__'
+MESSAGES_PARAM = '__ms__'
 NON_CONTEXT_PARAMS = (STATE_PARAM, EVENT_PARAM, INSTANCE_NAME_PARAM, TERMINATED_PARAM, TASK_NAME_PARAM,
-                      FAN_IN_RESULTS_PARAM, RETRY_COUNT_PARAM, FORKED_CONTEXTS_PARAM)
+                      FAN_IN_RESULTS_PARAM, RETRY_COUNT_PARAM, FORKED_CONTEXTS_PARAM, IMMEDIATE_MODE_PARAM,
+                      MESSAGES_PARAM)
 
 
 # these parameters are stored in the FSMContext, and used to drive the task naming machanism
