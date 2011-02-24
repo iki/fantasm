@@ -129,7 +129,7 @@ class FSMContextTests(unittest.TestCase):
     def test_generatedContextNameIsUnique(self):
         instanceName1 = self.context.instanceName
         state = State('foo', None, CountExecuteCalls(), None)
-        context2 = FSMContext({state.name : state}, state)
+        context2 = FSMContext({state.name : state}, state, queueName='q')
         instanceName2 = context2.instanceName
         self.assertNotEquals(instanceName1, instanceName2)
         
@@ -172,11 +172,12 @@ class FSMContextMergeJoinTests(AppEngineTestCase):
         super(FSMContextMergeJoinTests, self).setUp()
         self.state = State('foo', None, CountExecuteCalls(), None)
         self.state2 = State('foo2', None, CountExecuteCallsWithFork(), None)
-        self.state.addTransition(Transition('t1', self.state2), 'event')
+        self.state.addTransition(Transition('t1', self.state2, queueName='q'), 'event')
         self.context = FSMContext(self.state, 
                                   currentState=self.state, 
                                   machineName='machineName', 
-                                  instanceName='instanceName')
+                                  instanceName='instanceName',
+                                  queueName='qq')
         self.context[INDEX_PARAM] = 1
         self.context[STEPS_PARAM] = 0
         
@@ -347,12 +348,15 @@ class TaskQueueFSMTests(AppEngineTestCase):
         self.assertEqual('instanceName--state-initial--next-event--state-normal--step-123', 
                          self.context.getTaskName('next-event'))
         
-    def test_taskQueueOnQueueSpecifiedAtMachineLevel(self):
+    def test_taskQueueOnQueueSpecifiedAtTransitionLevel(self):
         mockQueue = TaskQueueDouble()
         mock(name='Queue.__init__', returns_func=mockQueue.__init__, tracker=None)
         mock(name='Queue.add', returns_func=mockQueue.add, tracker=None)
 
-        self.context.queueName = 'fantasm-queue'
+        self.transNormalToFinal.queueName = 'fantasm-queue' # should be this one (dest state)
+        self.transInitialToNormal.queueName = 'barfoo'
+        self.context.queueName = 'foobar'
+        
         self.context.currentState = self.stateInitial
         self.context.dispatch('next-event', {})
 

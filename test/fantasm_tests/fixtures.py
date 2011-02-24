@@ -25,7 +25,7 @@ class AppEngineTestCase(unittest.TestCase):
         apiproxy_stub_map.apiproxy = \
             apiproxy_stub_map.APIProxyStubMap()
 
-        self.__taskqueue = taskqueue_stub.TaskQueueServiceStub(root_path='.')
+        self.__taskqueue = taskqueue_stub.TaskQueueServiceStub(root_path='./test/')
         apiproxy_stub_map.apiproxy.RegisterStub('taskqueue', self.__taskqueue)
         
         self.__urlfetch = urlfetch_stub.URLFetchServiceStub()

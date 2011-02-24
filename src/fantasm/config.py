@@ -234,7 +234,7 @@ class _MachineConfig(object):
             raise exceptions.InvalidMachineAttributeError(self.name, badAttributes)
             
         # machine queue, namespace
-        self.queueName = initDict.get(constants.MACHINE_QUEUE_NAME_ATTRIBUTE, constants.DEFAULT_QUEUE_NAME)
+        self.queueName = initDict.get(constants.QUEUE_NAME_ATTRIBUTE, constants.DEFAULT_QUEUE_NAME)
         self.namespace = initDict.get(constants.NAMESPACE_ATTRIBUTE)
         
         # logging
@@ -490,6 +490,9 @@ class _TransitionConfig(object):
             raise exceptions.UnsupportedConfigurationError(self.machineName, self.fromState.name,
                 'Countdown cannot be specified on a transition to a fan_in state.'
             )
+            
+        # transition specific queue
+        self.queueName = transDict.get(constants.QUEUE_NAME_ATTRIBUTE, machine.queueName)
 
         # resolve the class for action, if specified
         if constants.TRANS_ACTION_ATTRIBUTE in transDict:

@@ -119,6 +119,13 @@ class MachineNameRequiredError(ConfigurationError):
         """ Initialize exception """
         message = '"%s" is required attribute of machine.' % constants.MACHINE_NAME_ATTRIBUTE
         super(MachineNameRequiredError, self).__init__(message)
+        
+class InvalidQueueNameError(ConfigurationError):
+    """ The queue name was not valid. """
+    def __init__(self, queueName, machineName):
+        """ Initialize exception """
+        message = 'Queue name "%s" must exist in queue.yaml. (Machine %s)' % (queueName, machineName)
+        super(InvalidQueueNameError, self).__init__(message)
 
 class InvalidMachineNameError(ConfigurationError):
     """ The machine name was not valid. """

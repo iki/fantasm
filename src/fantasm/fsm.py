@@ -118,13 +118,15 @@ class FSM(object):
                 # add the transition from pseudo-init to initialState
                 if state.isInitialState:
                     transition = Transition(FSM.PSEUDO_INIT, state, 
-                                            retryOptions = self._buildRetryOptions(machineConfig))
+                                            retryOptions = self._buildRetryOptions(machineConfig),
+                                            queueName=machineConfig.queueName)
                     self.pseudoInits[machineConfig.name].addTransition(transition, FSM.PSEUDO_INIT)
                     
                 # add the transition from finalState to pseudo-final
                 if state.isFinalState:
                     transition = Transition(FSM.PSEUDO_FINAL, pseudoFinal,
-                                            retryOptions = self._buildRetryOptions(machineConfig))
+                                            retryOptions = self._buildRetryOptions(machineConfig),
+                                            queueName=machineConfig.queueName)
                     state.addTransition(transition, FSM.PSEUDO_FINAL)
                     
                 machine[constants.MACHINE_STATES_ATTRIBUTE][stateConfig.name] = state
@@ -190,9 +192,10 @@ class FSM(object):
         target = self.machines[machineConfig.name][constants.MACHINE_STATES_ATTRIBUTE][transitionConfig.toState.name]
         retryOptions = self._buildRetryOptions(transitionConfig)
         countdown = transitionConfig.countdown
+        queueName = transitionConfig.queueName
         
         return Transition(transitionConfig.name, target, action=transitionConfig.action,
-                          countdown=countdown, retryOptions=retryOptions)
+                          countdown=countdown, retryOptions=retryOptions, queueName=queueName)
         
     def createFSMInstance(self, machineName, currentStateName=None, instanceName=None, data=None, method='GET',
                           obj=None):
@@ -253,6 +256,8 @@ class FSMContext(dict):
         @param persistentLogging: if True, use persistent _FantasmLog model
         @param obj: an object that the FSMContext can operate on  
         """
+        assert queueName
+        
         super(FSMContext, self).__init__(data or {})
         self.initialState = initialState
         self.currentState = currentState
@@ -393,7 +398,8 @@ class FSMContext(dict):
                 
                 try:
                     if tasks:
-                        self.Queue(name=self.queueName).add(tasks)
+                        transition = self.currentState.getTransition(nextEvent)
+                        self.Queue(name=transition.queueName).add(tasks)
                 
                 except (TaskAlreadyExistsError, TombstonedTaskError):
                     # unlike a similar block in self.continutation, this is well off the happy path
@@ -462,7 +468,8 @@ class FSMContext(dict):
         try:
             # pylint: disable-msg=W0212
             # - accessing the protected method is fine here, since it is an instance of the same class
-            context._queueDispatchNormal(self.startingEvent, queue=True)
+            transition = self.startingState.getTransition(self.startingEvent)
+            context._queueDispatchNormal(self.startingEvent, queue=True, queueName=transition.queueName)
             
         except (TaskAlreadyExistsError, TombstonedTaskError):
             # this can happen when currentState.dispatch() previously succeeded in queueing the continuation
@@ -484,23 +491,27 @@ class FSMContext(dict):
         # self.currentState is already transitioned away from self.startingState
         transition = self.currentState.getTransition(nextEvent)
         if transition.target.isFanIn:
-            task = self._queueDispatchFanIn(nextEvent, fanInPeriod=transition.target.fanInPeriod)
+            task = self._queueDispatchFanIn(nextEvent, fanInPeriod=transition.target.fanInPeriod,
+                                            queueName=transition.queueName)
         else:
             task = self._queueDispatchNormal(nextEvent, queue=queue, countdown=transition.countdown,
-                                             retryOptions=transition.retryOptions)
+                                             retryOptions=transition.retryOptions,
+                                             queueName=transition.queueName)
             
         return task
         
-    def _queueDispatchNormal(self, nextEvent, queue=True, countdown=0, retryOptions=None):
+    def _queueDispatchNormal(self, nextEvent, queue=True, countdown=0, retryOptions=None, queueName=None):
         """ Queues a call to .dispatch(nextEvent) in the appengine Task queue. 
         
         @param nextEvent: a string event 
         @param queue: a boolean indicating whether or not to queue a Task, or leave it to the caller 
         @param countdown: the number of seconds to countdown before the queued task fires
         @param retryOptions: the RetryOptions for the task
+        @param queueName: the queue name to Queue into 
         @return: a taskqueue.Task instance which may or may not have been queued already
         """
         assert nextEvent is not None
+        assert queueName
         
         url = self.buildUrl(self.currentState, nextEvent)
         params = self.buildParams(self.currentState, nextEvent)
@@ -509,20 +520,22 @@ class FSMContext(dict):
         task = Task(name=taskName, method=self.method, url=url, params=params, countdown=countdown,
                     retry_options=retryOptions)
         if queue:
-            self.Queue(name=self.queueName).add(task)
+            self.Queue(name=queueName).add(task)
         
         return task
     
-    def _queueDispatchFanIn(self, nextEvent, fanInPeriod=0):
+    def _queueDispatchFanIn(self, nextEvent, fanInPeriod=0, queueName=None):
         """ Queues a call to .dispatch(nextEvent) in the task queue, or saves the context to the 
         datastore for processing by the queued .dispatch(nextEvent)
         
         @param nextEvent: a string event 
         @param fanInPeriod: the period of time between fan in Tasks 
+        @param queueName: the queue name to Queue into 
         @return: a taskqueue.Task instance which may or may not have been queued already
         """
         assert nextEvent is not None
         assert not self.get(constants.INDEX_PARAM) # fan-in after fan-in is not allowed
+        assert queueName
         
         # we pop this off here because we do not want the fan-out/continuation param as part of the
         # task name, otherwise we loose the fan-in - each fan-in gets one work unit.
@@ -569,7 +582,7 @@ class FSMContext(dict):
                         url=url,
                         params=params,
                         eta=datetime.datetime.utcfromtimestamp(now) + datetime.timedelta(seconds=fanInPeriod))
-            self.Queue(name=self.queueName).add(task)
+            self.Queue(name=queueName).add(task)
             return task
         except (TaskAlreadyExistsError, TombstonedTaskError):
             pass # Fan-in magic

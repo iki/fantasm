@@ -1,5 +1,34 @@
 state_machines:
   
+- name: DatastoreFSMContinuationQueueTests
+  namespace: fantasm_tests.actions
+  queue: queue1
+  states:
+    
+    - name: state-initial
+      entry: CountExecuteCalls
+      action: CountExecuteCalls
+      initial: True
+      transitions:
+        - event: next-event
+          to: state-continuation
+          queue: queue2
+      
+    - name: state-continuation
+      entry: CountExecuteCalls
+      action: TestDatastoreContinuationFSMAction
+      continuation: True
+      final: True # query may return no results
+      transitions:
+        - event: next-event
+          to: state-final
+          queue: queue3
+      
+    - name: state-final
+      entry: CountExecuteCalls
+      action: CountExecuteCallsFinal
+      final: True
+  
 - name: DatastoreFSMContinuationTests
   namespace: fantasm_tests.actions
   states:

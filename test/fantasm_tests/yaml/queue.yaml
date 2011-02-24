@@ -1,0 +1,13 @@
+queue:
+  
+- name: queue1
+  rate: 50/s
+  bucket_size: 50
+
+- name: queue2
+  rate: 50/s
+  bucket_size: 50
+  
+- name: queue3
+  rate: 50/s
+  bucket_size: 50

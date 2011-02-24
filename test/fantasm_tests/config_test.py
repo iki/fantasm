@@ -64,7 +64,7 @@ class TestMachineDictionaryProcessing(unittest.TestCase):
                           
     def test_queueParsed(self):
         queueName = 'SomeQueue'
-        self.machineDict[constants.MACHINE_QUEUE_NAME_ATTRIBUTE] = queueName
+        self.machineDict[constants.QUEUE_NAME_ATTRIBUTE] = queueName
         fsm = config._MachineConfig(self.machineDict)
         self.assertEquals(fsm.queueName, queueName)
         
@@ -432,6 +432,7 @@ class TestTransitionDictionaryProcessing(unittest.TestCase):
         }
         self.fsm = config._MachineConfig({constants.MACHINE_NAME_ATTRIBUTE: 'MyMachine', 
                                           constants.NAMESPACE_ATTRIBUTE: 'fantasm_tests.config_test',
+                                          constants.QUEUE_NAME_ATTRIBUTE: 'somequeue',
                                           constants.TASK_RETRY_LIMIT_ATTRIBUTE: 100,
                                           constants.MIN_BACKOFF_SECONDS_ATTRIBUTE: 101,
                                           constants.MAX_BACKOFF_SECONDS_ATTRIBUTE: 102,
@@ -511,6 +512,15 @@ class TestTransitionDictionaryProcessing(unittest.TestCase):
     def test_maxRetriesInheritedFromMachine(self):
         transition = self.fsm.addTransition(self.transDict, 'GoodState')
         self.assertEquals(transition.maxRetries, 100)
+        
+    def test_queueNameInheritedFromMachine(self):
+        transition = self.fsm.addTransition(self.transDict, 'GoodState')
+        self.assertEquals(transition.queueName, 'somequeue')
+        
+    def test_queueNameOverridesMachineQueueName(self):
+        self.transDict[constants.QUEUE_NAME_ATTRIBUTE] = 'someotherqueue'
+        transition = self.fsm.addTransition(self.transDict, 'GoodState')
+        self.assertEquals(transition.queueName, 'someotherqueue')
         
     def test_maxRetriesOverridesMachineRetryPolicy(self):
         self.transDict[constants.MAX_RETRIES_ATTRIBUTE] = 99

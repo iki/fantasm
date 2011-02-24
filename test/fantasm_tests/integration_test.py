@@ -310,6 +310,51 @@ class RunTasksTests_DatastoreFSMContinuationTests(RunTasksBaseTest):
 class RunTasksTests_DatastoreFSMContinuationTests_POST(RunTasksTests_DatastoreFSMContinuationTests):
     METHOD = 'POST'
     
+class RunTasksTests_DatastoreFSMContinuationQueueTests(RunTasksBaseTest):
+    
+    FILENAME = 'test-DatastoreFSMContinuationTests.yaml'
+    MACHINE_NAME = 'DatastoreFSMContinuationQueueTests'
+    
+    def setUp(self):
+        super(RunTasksTests_DatastoreFSMContinuationQueueTests, self).setUp()
+        
+        import google.appengine.api.taskqueue.taskqueue_stub as taskqueue_stub
+        import google.appengine.api.apiproxy_stub_map as apiproxy_stub_map
+        self.__taskqueue = taskqueue_stub.TaskQueueServiceStub(root_path='./test/fantasm_tests/yaml/')
+        apiproxy_stub_map.apiproxy._APIProxyStubMap__stub_map.pop('taskqueue')
+        apiproxy_stub_map.apiproxy.RegisterStub('taskqueue', self.__taskqueue)
+        
+    def test_DatastoreFSMContinuationTests(self):
+        self.context.initialize() # queues the first task
+        
+        ran1 = runQueuedTasks(queueName='queue1')
+        self.assertEqual(['instanceName--pseudo-init--pseudo-init--state-initial--step-0'], ran1)
+        
+        ran2 = runQueuedTasks(queueName='queue2')
+        self.assertEqual(['instanceName--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-1--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-2--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-3--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-4--state-initial--next-event--state-continuation--step-1',
+                          'instanceName--continuation-1-5--state-initial--next-event--state-continuation--step-1'], ran2)
+        
+        ran3 = runQueuedTasks(queueName='queue3')
+        self.assertEqual(['instanceName--state-continuation--next-event--state-final--step-2',  
+                          'instanceName--continuation-1-1--state-continuation--next-event--state-final--step-2', 
+                          'instanceName--continuation-1-2--state-continuation--next-event--state-final--step-2', 
+                          'instanceName--continuation-1-3--state-continuation--next-event--state-final--step-2',  
+                          'instanceName--continuation-1-4--state-continuation--next-event--state-final--step-2'], ran3)
+        
+        self.assertEqual({'state-initial': {'entry': 1, 'action': 1, 'exit': 0},
+                          'state-continuation': {'entry': 6, 'action': 5, 'continuation': 6, 'exit': 0},
+                          'state-final': {'entry': 5, 'action': 5, 'exit': 0},
+                          'state-initial--next-event': {'action': 0},
+                          'state-continuation--next-event': {'action': 0}}, 
+                         getCounts(self.machineConfig))
+        
+class RunTasksTests_DatastoreFSMContinuationQueueTests_POST(RunTasksTests_DatastoreFSMContinuationQueueTests):
+    METHOD = 'POST'
+    
 class RunTasksTests_FileFSMContinuationTests(RunTasksBaseTest):
     
     FILENAME = 'test-FileFSMContinuationTests.yaml'
