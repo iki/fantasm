@@ -19,14 +19,15 @@ Copyright 2010 VendAsta Technologies Inc.
 
 import time
 import logging
-from django.utils import simplejson
+import simplejson
 from google.appengine.ext import deferred, webapp, db
 from google.appengine.api.capabilities import CapabilitySet
 from fantasm import config, constants
 from fantasm.fsm import FSM
 from fantasm.utils import NoOpQueue
 from fantasm.constants import NON_CONTEXT_PARAMS, STATE_PARAM, EVENT_PARAM, INSTANCE_NAME_PARAM, TASK_NAME_PARAM, \
-                              RETRY_COUNT_PARAM, STARTED_AT_PARAM, IMMEDIATE_MODE_PARAM, MESSAGES_PARAM
+                              RETRY_COUNT_PARAM, STARTED_AT_PARAM, IMMEDIATE_MODE_PARAM, MESSAGES_PARAM, \
+                              HTTP_REQUEST_HEADER_PREFIX
 from fantasm.exceptions import UnknownMachineError, RequiredServicesUnavailableRuntimeError, FSMRuntimeError
 from fantasm.models import _FantasmTaskSemaphore, Encoder
 
@@ -152,7 +153,10 @@ class FSMHandler(webapp.RequestHandler):
             self.response.out.write('<pre>%s</pre>' % (cgi.escape(lines, quote=True)))
         
     def get_or_post(self, method='POST'):
-        """ Handles the GET/POST request. """
+        """ Handles the GET/POST request. 
+        
+        FIXME: this is getting a touch long
+        """
         
         # ensure that we have our services for the next 30s (length of a single request)
         unavailable = set()
@@ -178,7 +182,17 @@ class FSMHandler(webapp.RequestHandler):
                 logging.info('A duplicate task "%s" has been queued by taskqueue infrastructure. Ignoring.', taskName)
                 self.response.status_code = 200
                 return
-
+            
+        # pull out X-Fantasm-* headers
+        headers = None
+        for key, value in self.request.headers.items():
+            if key.startswith(HTTP_REQUEST_HEADER_PREFIX):
+                headers = headers or {}
+                if ',' in value:
+                    headers[key] = [v.strip() for v in value.split(',')]
+                else:
+                    headers[key] = value.strip()
+            
         requestData = {'POST': self.request.POST, 'GET': self.request.GET}[method]
         method = requestData.get('method') or method
         
@@ -203,7 +217,8 @@ class FSMHandler(webapp.RequestHandler):
                                                 currentStateName=fsmState, 
                                                 instanceName=instanceName,
                                                 method=method,
-                                                obj=obj)
+                                                obj=obj,
+                                                headers=headers)
         
         # in "immediate mode" we try to execute as much as possible in the current request
         # for the time being, this does not include things like fork/spawn/contuniuations/fan-in

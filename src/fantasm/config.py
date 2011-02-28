@@ -20,7 +20,7 @@ Copyright 2010 VendAsta Technologies Inc.
 import os
 import yaml
 import logging
-from django.utils import simplejson
+import simplejson
 import datetime
 from fantasm import exceptions, constants, utils
 

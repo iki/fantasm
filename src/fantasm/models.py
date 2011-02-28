@@ -19,7 +19,7 @@ Copyright 2010 VendAsta Technologies Inc.
 
 from google.appengine.ext import db
 from google.appengine.api import datastore_types
-from django.utils import simplejson
+import simplejson
 import datetime
 
 def decode(dct):

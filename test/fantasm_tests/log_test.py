@@ -109,6 +109,13 @@ class LoggerTestPersistent(AppEngineTestCase):
         else:
             self.assertEqual('logging error', self.loggingDouble.messages['info'][0])
             
+    def test_logging_TypeError(self):
+        self.context.logger.info('%s')
+        if self.PERSISTENT_LOGGING:
+            runQueuedTasks(queueName=self.context.queueName)
+            self.assertEqual('%s', _FantasmLog.all().get().message)
+            self.assertEqual(logging.INFO, _FantasmLog.all().get().level)
+            
     def test_machineName(self):
         self.context.logger.info('info')
         if self.PERSISTENT_LOGGING:

@@ -48,6 +48,18 @@ def _log(instanceName,
     @param args:
     @param kwargs:
     """
+    # logging.info etc. handle this like:
+    #
+    # import logging
+    # >>> logging.critical('%s')
+    # CRITICAL:root:%s
+    #
+    # so we will do the same thing here
+    try:
+        message = message % args
+    except TypeError: # TypeError: not enough arguments for format string
+        pass
+    
     _FantasmLog(instanceName=instanceName, 
                 machineName=machineName,
                 stateName=stateName,
@@ -56,7 +68,7 @@ def _log(instanceName,
                 level=level,
                 namespace=namespace,
                 tags=list(set(tags)) or [],
-                message=message % args, 
+                message=message, 
                 stack=stack,
                 time=time).put()
 
@@ -145,7 +157,10 @@ class Logger( object ):
         # in the http response in handler.py
         if self.__obj is not None:
             if self.__obj.get(constants.IMMEDIATE_MODE_PARAM):
-                self.__obj[constants.MESSAGES_PARAM].append(message)
+                try:
+                    self.__obj[constants.MESSAGES_PARAM].append(message % args)
+                except TypeError:
+                    self.__obj[constants.MESSAGES_PARAM].append(message)
                 
         serialized = deferred.serialize(_log,
                                         self.context.instanceName,

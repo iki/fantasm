@@ -85,7 +85,10 @@ class LoggingDouble(object):
             except Exception, e:
                 message = 'logging error'
                 args = ()
-        self.messages[level].append(message % args)
+        try:
+            self.messages[level].append(message % args)
+        except TypeError:
+            self.messages[level].append(message)
 
     def debug(self, message, *args, **kwargs):
         self._log('debug', message, *args, **kwargs)

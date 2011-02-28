@@ -213,6 +213,29 @@ class ParamsTests(RunTasksBaseTest):
     def test_POST_lots_of_different_data_types(self):
         self._test_lots_of_different_data_types('POST')
         
+class HeadersTests(RunTasksBaseTest):
+    
+    FILENAME = 'test-TaskQueueFSMTests.yaml'
+    MACHINE_NAME = 'TaskQueueFSMTests'
+    
+    def setUp(self):
+        super(HeadersTests, self).setUp()
+        ContextRecorder.CONTEXTS = []
+                
+    def tearDown(self):
+        super(HeadersTests, self).tearDown()
+        ContextRecorder.CONTEXTS = []
+        
+    def test_headers(self):
+        self.context.headers = {'X-Fantasm-Header': 'abc'}
+        self.context.initialize() # queues the first task
+        ran = runQueuedTasks(queueName=self.context.queueName)
+        
+    def test_headers_multi_valued(self):
+        self.context.headers = {'X-Fantasm-Header': ['abc', '123']}
+        self.context.initialize() # queues the first task
+        ran = runQueuedTasks(queueName=self.context.queueName)
+        
 class RunTasksTests_TaskQueueFSMTests(RunTasksBaseTest):
     
     FILENAME = 'test-TaskQueueFSMTests.yaml'

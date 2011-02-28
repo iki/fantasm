@@ -7,7 +7,7 @@
     <property name="testdir" value="${basedir}/test"/>
     <property name="toolsdir" value="${basedir}/tools"/>
     <property name="appenginedir" value="/usr/local/google_appengine"/>
-    <property name="tests.pythonpath" value="${testdir}:${srcdir}:${basedir}:${appenginedir}:${appenginedir}/lib/yaml/lib:${appenginedir}/lib/webob:${appenginedir}/lib/django:${appenginedir}/lib/fancy_urllib:${toolsdir}"/>
+    <property name="tests.pythonpath" value="${testdir}:${srcdir}:${basedir}:${appenginedir}:${appenginedir}/lib/simplejson:${appenginedir}/lib/yaml/lib:${appenginedir}/lib/webob:${appenginedir}/lib/django:${appenginedir}/lib/fancy_urllib:${toolsdir}"/>
 
     <target name="clean">
         <delete>

@@ -19,7 +19,7 @@ Copyright 2010 VendAsta Technologies Inc.
 
 import os
 import re
-from django.utils import simplejson
+import simplejson
 
 # these parameters are not stored in the FSMContext, but are used to drive the fantasm task/event dispatching mechanism
 STATE_PARAM = '__st__'
@@ -61,6 +61,9 @@ REQUEST_LENGTH = 30
 MAX_NAME_LENGTH = 50 # we need to combine a number of names into a task name, which has a 500 char limit
 NAME_PATTERN = r'^[a-zA-Z0-9-]{1,%s}$' % MAX_NAME_LENGTH
 NAME_RE = re.compile(NAME_PATTERN)
+
+HTTP_REQUEST_HEADER_PREFIX = 'X-Fantasm-'
+HTTP_ENVIRON_KEY_PREFIX = 'HTTP_X_FANTASM_'
 
 DEFAULT_TASK_RETRY_LIMIT = None
 DEFAULT_MIN_BACKOFF_SECONDS = None

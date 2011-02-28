@@ -34,7 +34,7 @@ import datetime
 import random
 import copy
 import time
-from django.utils import simplejson
+import simplejson
 from google.appengine.api.taskqueue.taskqueue import Task, TaskAlreadyExistsError, TombstonedTaskError, \
                                                      TaskRetryOptions
 from google.appengine.ext import db
@@ -198,7 +198,7 @@ class FSM(object):
                           countdown=countdown, retryOptions=retryOptions, queueName=queueName)
         
     def createFSMInstance(self, machineName, currentStateName=None, instanceName=None, data=None, method='GET',
-                          obj=None):
+                          obj=None, headers=None):
         """ Creates an FSMContext instance with non-initialized data 
         
         @param machineName: the name of FSMContext to instantiate, as defined in fsm.yaml 
@@ -207,6 +207,7 @@ class FSM(object):
         @param data: a dict or FSMContext
         @param method: 'GET' or 'POST'
         @param obj: an object that the FSMContext can operate on
+        @param headers: a dict of X-Fantasm request headers to pass along in Tasks 
         @raise UnknownMachineError: if machineName is unknown
         @raise UnknownStateError: is currentState name is not None and unknown in machine with name machineName
         @return: an FSMContext instance
@@ -236,14 +237,15 @@ class FSM(object):
                           data=data, contextTypes=machineConfig.contextTypes,
                           method=method,
                           persistentLogging=(machineConfig.logging == constants.LOGGING_PERSISTENT),
-                          obj=obj)
+                          obj=obj,
+                          headers=headers)
 
 class FSMContext(dict):
     """ A finite state machine context instance. """
     
     def __init__(self, initialState, currentState=None, machineName=None, instanceName=None,
                  retryOptions=None, url=None, queueName=None, data=None, contextTypes=None,
-                 method='GET', persistentLogging=False, obj=None):
+                 method='GET', persistentLogging=False, obj=None, headers=None):
         """ Constructor
         
         @param initialState: a State instance 
@@ -253,6 +255,7 @@ class FSMContext(dict):
         @param retryOptions: the TaskRetryOptions for the machine
         @param url: the url of the fsm  
         @param queueName: the name of the appengine task queue 
+        @param headers: a dict of X-Fantasm request headers to pass along in Tasks 
         @param persistentLogging: if True, use persistent _FantasmLog model
         @param obj: an object that the FSMContext can operate on  
         """
@@ -277,6 +280,7 @@ class FSMContext(dict):
             self.contextTypes.update(contextTypes)
         self.logger = Logger(self, obj=obj, persistentLogging=persistentLogging)
         self.__obj = obj
+        self.headers = headers
         
         # the following is monkey-patched from handler.py for 'immediate mode'
         from google.appengine.api.taskqueue.taskqueue import Queue
@@ -315,7 +319,8 @@ class FSMContext(dict):
         url = self.buildUrl(self.currentState, FSM.PSEUDO_INIT)
         params = self.buildParams(self.currentState, FSM.PSEUDO_INIT)
         taskName = taskName or self.getTaskName(FSM.PSEUDO_INIT)
-        task = Task(name=taskName, method=self.method, url=url, params=params, countdown=countdown)
+        task = Task(name=taskName, method=self.method, url=url, params=params, countdown=countdown, 
+                    headers=self.headers)
         return task
     
     def fork(self, data=None):
@@ -518,7 +523,7 @@ class FSMContext(dict):
         taskName = self.getTaskName(nextEvent)
         
         task = Task(name=taskName, method=self.method, url=url, params=params, countdown=countdown,
-                    retry_options=retryOptions)
+                    retry_options=retryOptions, headers=self.headers)
         if queue:
             self.Queue(name=queueName).add(task)
         
@@ -581,7 +586,8 @@ class FSMContext(dict):
                         method=self.method,
                         url=url,
                         params=params,
-                        eta=datetime.datetime.utcfromtimestamp(now) + datetime.timedelta(seconds=fanInPeriod))
+                        eta=datetime.datetime.utcfromtimestamp(now) + datetime.timedelta(seconds=fanInPeriod),
+                        headers=self.headers)
             self.Queue(name=queueName).add(task)
             return task
         except (TaskAlreadyExistsError, TombstonedTaskError):
@@ -830,7 +836,7 @@ class FSMContext(dict):
         return context
 
 def startStateMachine(machineName, contexts, taskName=None, method='POST', countdown=0,
-                      _currentConfig=None):
+                      _currentConfig=None, headers=None):
     """ Starts a new machine(s), by simply queuing a task. 
     
     @param machineName the name of the machine in the FSM to start
@@ -838,6 +844,7 @@ def startStateMachine(machineName, contexts, taskName=None, method='POST', count
     @param taskName used for idempotency; will become the root of the task name for the actual task queued
     @param method the HTTP methld (GET/POST) to run the machine with (default 'POST')
     @param countdown the number of seconds into the future to start the machine (default 0 - immediately)
+    @param headers: a dict of X-Fantasm request headers to pass along in Tasks 
     
     @param _currentConfig used for test injection (default None - use fsm.yaml definitions)
     """
@@ -852,7 +859,8 @@ def startStateMachine(machineName, contexts, taskName=None, method='POST', count
         
     fsm = FSM(currentConfig=_currentConfig) # loads the FSM definition
     
-    instances = [fsm.createFSMInstance(machineName, data=context, method=method) for context in contexts]
+    instances = [fsm.createFSMInstance(machineName, data=context, method=method, headers=headers) 
+                 for context in contexts]
     
     tasks = []
     for i, instance in enumerate(instances):
