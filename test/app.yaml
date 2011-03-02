@@ -1,4 +1,4 @@
-application: fantasm-test
+application: insert-appid
 version: 1
 runtime: python
 api_version: 1
