@@ -40,8 +40,14 @@ class SendEmail(DatastoreContinuationFSMAction):
         if not obj['result']:
             return None # datastore continuations can go "one past" the end of the results; we need to handle this here
         subscriber = obj['result']
-        # TODO: send email to subscriber
+
+        # TODO: here's where the actual email would be send with Mail API
+        # from google.appengine.api import mail
+        # mail.send_mail(sender="sender@example.com",
+        #                to=subscriber.email, ...)
+
         logging.info('Sending email to %s', subscriber.email)
+
         return 'next'
         
 class UpdateCounter(object):
@@ -88,9 +94,9 @@ class CreateSubscribers(webapp.RequestHandler):
     
     def get(self):
         emails = [
-            'jcollins@vendasta.com',
-            'srusaw@vendasta.com',
-            'jason.a.collins@gmail.com'
+            'ted@example.com',
+            'sue@example.com',
+            'bob@example.com'
         ]
         for email in emails:
             Subscriber(email=email).put()
