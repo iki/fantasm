@@ -29,7 +29,7 @@ from fantasm.constants import NON_CONTEXT_PARAMS, STATE_PARAM, EVENT_PARAM, INST
                               RETRY_COUNT_PARAM, STARTED_AT_PARAM, IMMEDIATE_MODE_PARAM, MESSAGES_PARAM, \
                               HTTP_REQUEST_HEADER_PREFIX
 from fantasm.exceptions import UnknownMachineError, RequiredServicesUnavailableRuntimeError, FSMRuntimeError
-from fantasm.models import _FantasmTaskSemaphore, Encoder
+from fantasm.models import _FantasmTaskSemaphore, Encoder, _FantasmFanIn
 
 REQUIRED_SERVICES = ('memcache', 'datastore_v3', 'taskqueue')
 
@@ -84,6 +84,13 @@ class FSMLogHandler(webapp.RequestHandler):
     def post(self):
         """ Runs the serialized function """
         deferred.run(self.request.body)
+        
+class FSMFanInCleanupHandler(webapp.RequestHandler):
+    """ The handler used for logging """
+    def post(self):
+        """ Runs the serialized function """
+        q = _FantasmFanIn.all().filter('workIndex =', self.request.POST['workIndex'])
+        db.delete(q)
 
 class FSMGraphvizHandler(webapp.RequestHandler):
     """ The hander to output graphviz diagram of the finite state machine. """

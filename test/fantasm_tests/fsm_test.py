@@ -186,7 +186,7 @@ class FSMContextMergeJoinTests(AppEngineTestCase):
         self.assertEqual(1, _FantasmFanIn.all().count())
         contexts = self.context.mergeJoinDispatch('event', {})
         self.assertEqual([{'__ix__': 1, '__step__': 0}], contexts)
-        self.assertEqual(0, _FantasmFanIn.all().count())
+        self.assertEqual(1, _FantasmFanIn.all().count())
         
     def test_mergeJoinDispatch_1234_contexts(self):
         for i in xrange(1234):
@@ -194,7 +194,7 @@ class FSMContextMergeJoinTests(AppEngineTestCase):
         self.assertEqual(1000, _FantasmFanIn.all().count()) # can't get them all with .count()
         contexts = self.context.mergeJoinDispatch('event', {})
         self.assertEqual(1234, len(contexts))
-        self.assertEqual(0, _FantasmFanIn.all().count())
+        self.assertEqual(1000, _FantasmFanIn.all().count())
         
 
 
@@ -622,11 +622,11 @@ class DatastoreFSMContinuationFanInTests(DatastoreFSMContinuationBaseTests):
         
         event = self.context.dispatch(event, TemporaryStateObject())
         self.assertEqual('state-fan-in', self.context.currentState.name)
-        self.assertEqual(0, _FantasmFanIn.all().count())
+        self.assertEqual(1+1, _FantasmFanIn.all().count())
         
         event = self.context.dispatch(event, TemporaryStateObject())
         self.assertEqual('state-final', self.context.currentState.name)
-        self.assertEqual(0, _FantasmFanIn.all().count())
+        self.assertEqual(1+1, _FantasmFanIn.all().count())
         
     def test_DatastoreFSMContinuationFanInTests_write_lock_error(self):
         obj = TemporaryStateObject()
@@ -694,11 +694,11 @@ class DatastoreFSMContinuationFanInTests(DatastoreFSMContinuationBaseTests):
         
         event = self.context.dispatch(event, TemporaryStateObject())
         self.assertEqual('state-fan-in', self.context.currentState.name)
-        self.assertEqual(0, _FantasmFanIn.all().count())
+        self.assertEqual(1 + 1, _FantasmFanIn.all().count())
         
         event = self.context.dispatch(event, TemporaryStateObject())
         self.assertEqual('state-final', self.context.currentState.name)
-        self.assertEqual(0, _FantasmFanIn.all().count())
+        self.assertEqual(1 + 1, _FantasmFanIn.all().count())
 
 class ContextTypesCoercionTests(unittest.TestCase):
     

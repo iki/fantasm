@@ -564,7 +564,6 @@ class RunTasksTests_DatastoreFSMContinuationFanInAndForkTests(RunTasksBaseTest):
     def test_DatastoreFSMContinuationTests(self):
         self.context.initialize() # queues the first task
         ran = runQueuedTasks(queueName=self.context.queueName)
-        ran = [re.sub(r'^(.+fan-in--step-[0-9]+-)[0-9]+(-.+)$', r'\1###\2', r) for r in ran] # hard to mock it out
         self.assertEqual(
             ['instanceName--pseudo-init--pseudo-init--state-continuation-and-fork--step-0', 
              'instanceName--continuation-0-1--pseudo-init--pseudo-init--state-continuation-and-fork--step-0', 
@@ -572,7 +571,7 @@ class RunTasksTests_DatastoreFSMContinuationFanInAndForkTests(RunTasksBaseTest):
              'instanceName--continuation-0-3--pseudo-init--pseudo-init--state-continuation-and-fork--step-0', 
              'instanceName--continuation-0-4--pseudo-init--pseudo-init--state-continuation-and-fork--step-0', 
              'instanceName--continuation-0-5--pseudo-init--pseudo-init--state-continuation-and-fork--step-0', 
-             'instanceName--state-continuation-and-fork--next-event--state-fan-in--step-1-###-1', 
+             'instanceName--state-continuation-and-fork--next-event--state-fan-in--step-1-1', 
              'instanceName--work-index-1--state-fan-in--next-event--state-final--step-2'],ran)
         self.assertEqual({'state-continuation-and-fork': {'entry': 6, 'action': 5, 'continuation': 6, 'exit': 0},
                           'state-fan-in': {'entry': 1, 'action': 1, 'exit': 0, 
@@ -581,18 +580,19 @@ class RunTasksTests_DatastoreFSMContinuationFanInAndForkTests(RunTasksBaseTest):
                           'state-continuation-and-fork--next-event': {'action': 0},
                           'state-fan-in--next-event': {'action': 0}}, 
                          getCounts(self.machineConfig))
+        self.assertEqual(1, _FantasmFanIn.all().count())
         # pylint: disable-msg=C0301
         # - long lines are much clearer in htis case
-        self.assertEqual([{u'__count__': 1, u'key': datastore_types.Key.from_path(u'TestModel', '1', _app=u'fantasm'), 'data': {'a': 'b'}, u'__step__': 1, u'__ix__': 1}, 
-                          {u'__count__': 1, u'key': datastore_types.Key.from_path(u'TestModel', '0', _app=u'fantasm'), 'data': {'a': 'b'}, u'__step__': 1, u'__ix__': 1}, 
-                          {u'__count__': 2, u'key': datastore_types.Key.from_path(u'TestModel', '3', _app=u'fantasm'), 'data': {'a': 'b'}, u'__step__': 1, u'__ix__': 1}, 
+        self.assertEqual([{u'__count__': 2, u'key': datastore_types.Key.from_path(u'TestModel', '3', _app=u'fantasm'), 'data': {'a': 'b'}, u'__step__': 1, u'__ix__': 1}, 
                           {u'__count__': 2, u'key': datastore_types.Key.from_path(u'TestModel', '2', _app=u'fantasm'), 'data': {'a': 'b'}, u'__step__': 1, u'__ix__': 1}, 
                           {u'__count__': 3, u'key': datastore_types.Key.from_path(u'TestModel', '5', _app=u'fantasm'), 'data': {'a': 'b'}, u'__step__': 1, u'__ix__': 1}, 
                           {u'__count__': 3, u'key': datastore_types.Key.from_path(u'TestModel', '4', _app=u'fantasm'), 'data': {'a': 'b'}, u'__step__': 1, u'__ix__': 1}, 
                           {u'__count__': 4, u'key': datastore_types.Key.from_path(u'TestModel', '7', _app=u'fantasm'), 'data': {'a': 'b'}, u'__step__': 1, u'__ix__': 1}, 
                           {u'__count__': 4, u'key': datastore_types.Key.from_path(u'TestModel', '6', _app=u'fantasm'), 'data': {'a': 'b'}, u'__step__': 1, u'__ix__': 1}, 
-                          {u'__count__': 5, u'key': datastore_types.Key.from_path(u'TestModel', '9', _app=u'fantasm'), 'data': {'a': 'b'}, u'__step__': 1, u'__ix__': 1},
-                          {u'__count__': 5, u'key': datastore_types.Key.from_path(u'TestModel','8', _app=u'fantasm'), 'data': {'a': 'b'}, u'__step__': 1, u'__ix__': 1}], CountExecuteCallsFanIn.CONTEXTS)
+                          {u'__count__': 5, u'key': datastore_types.Key.from_path(u'TestModel', '9', _app=u'fantasm'), 'data': {'a': 'b'}, u'__step__': 1, u'__ix__': 1}, 
+                          {u'__count__': 5, u'key': datastore_types.Key.from_path(u'TestModel', '8', _app=u'fantasm'), 'data': {'a': 'b'}, u'__step__': 1, u'__ix__': 1}, 
+                          {u'__count__': 1, u'key': datastore_types.Key.from_path(u'TestModel', '1', _app=u'fantasm'), 'data': {'a': 'b'}, u'__step__': 1, u'__ix__': 1},
+                          {u'__count__': 1, u'key': datastore_types.Key.from_path(u'TestModel','0', _app=u'fantasm'), 'data': {'a': 'b'}, u'__step__': 1, u'__ix__': 1}], CountExecuteCallsFanIn.CONTEXTS)
         
 class RunTasksTests_DatastoreFSMContinuationFanInAndForkTests_POST(
                                                             RunTasksTests_DatastoreFSMContinuationFanInAndForkTests):
@@ -642,7 +642,6 @@ class RunTasksTests_DatastoreFSMContinuationFanInTests(RunTasksBaseTest):
         # FIXME: this test is non-deterministic based on time.time in _queueDispatchFanIn
         self.context.initialize() # queues the first task
         ran = runQueuedTasks(queueName=self.context.queueName)
-        ran = [re.sub(r'^(.+fan-in--step-[0-9]+-)[0-9]+(-.+)$', r'\1###\2', r) for r in ran] # hard to mock it out
         self.assertEqual(['instanceName--pseudo-init--pseudo-init--state-initial--step-0', 
                           'instanceName--state-initial--next-event--state-continuation--step-1', 
                           'instanceName--continuation-1-1--state-initial--next-event--state-continuation--step-1', 
@@ -650,7 +649,7 @@ class RunTasksTests_DatastoreFSMContinuationFanInTests(RunTasksBaseTest):
                           'instanceName--continuation-1-3--state-initial--next-event--state-continuation--step-1', 
                           'instanceName--continuation-1-4--state-initial--next-event--state-continuation--step-1', 
                           'instanceName--continuation-1-5--state-initial--next-event--state-continuation--step-1', 
-                          'instanceName--state-continuation--next-event--state-fan-in--step-2-###-1', 
+                          'instanceName--state-continuation--next-event--state-fan-in--step-2-1', 
                           'instanceName--work-index-1--state-fan-in--next-event--state-final--step-3'], ran)
         self.assertEqual({'state-initial': {'entry': 1, 'action': 1, 'exit': 0},
                           'state-continuation': {'entry': 6, 'action': 5, 'continuation': 6, 'exit': 0},
@@ -661,11 +660,11 @@ class RunTasksTests_DatastoreFSMContinuationFanInTests(RunTasksBaseTest):
                           'state-continuation--next-event': {'action': 0},
                           'state-fan-in--next-event': {'action': 0}}, 
                  getCounts(self.machineConfig))
-        self.assertEqual([{u'__ix__': 1, u'__count__': 1, u'__step__': 2}, 
-                          {u'__ix__': 1, u'__count__': 2, u'__step__': 2}, 
+        self.assertEqual([{u'__ix__': 1, u'__count__': 2, u'__step__': 2}, 
                           {u'__ix__': 1, u'__count__': 3, u'__step__': 2}, 
                           {u'__ix__': 1, u'__count__': 4, u'__step__': 2}, 
-                          {u'__ix__': 1, u'__count__': 5, u'__step__': 2}], CountExecuteCallsFanIn.CONTEXTS)
+                          {u'__ix__': 1, u'__count__': 5, u'__step__': 2}, 
+                          {u'__ix__': 1, u'__count__': 1, u'__step__': 2}], CountExecuteCallsFanIn.CONTEXTS)
         
 class RunTasksTests_DatastoreFSMContinuationFanInTests_POST(RunTasksTests_DatastoreFSMContinuationFanInTests):
     METHOD = 'POST'
@@ -679,7 +678,6 @@ class RunTasksTests_DatastoreFSMContinuationFanInDiamondTests(RunTasksBaseTest):
         # FIXME: this test is non-deterministic based on time.time in _queueDispatchFanIn
         self.context.initialize() # queues the first task
         ran = runQueuedTasks(queueName=self.context.queueName)
-        ran = [re.sub(r'^(.+fan-in--step-[0-9]+-)[0-9]+(-.+)$', r'\1###\2', r) for r in ran] # hard to mock it out
         self.assertEqual(['instanceName--pseudo-init--pseudo-init--state-continuation--step-0', 
                           'instanceName--continuation-0-1--pseudo-init--pseudo-init--state-continuation--step-0', 
                           'instanceName--state-continuation--happy--state-happy--step-1', 
@@ -691,8 +689,8 @@ class RunTasksTests_DatastoreFSMContinuationFanInDiamondTests(RunTasksBaseTest):
                           'instanceName--continuation-0-3--state-continuation--sad--state-sad--step-1', 
                           'instanceName--continuation-0-5--pseudo-init--pseudo-init--state-continuation--step-0', 
                           'instanceName--continuation-0-4--state-continuation--happy--state-happy--step-1', 
-                          'instanceName--state-happy--next-event--state-fan-in--step-2-###-1', 
-                          'instanceName--state-sad--next-event--state-fan-in--step-2-###-1'], ran)
+                          'instanceName--state-happy--next-event--state-fan-in--step-2-1', 
+                          'instanceName--state-sad--next-event--state-fan-in--step-2-1'], ran)
         self.assertEqual({'state-continuation': {'entry': 6, 'continuation': 6, 'action': 5, 'exit': 0},
                           'state-happy': {'entry': 3, 'action': 3, 'exit': 0},
                           'state-sad': {'entry': 2, 'action': 2, 'exit': 0},
@@ -717,14 +715,13 @@ class RunTasksTests_DatastoreFSMContinuationFanInTestsInitCont(RunTasksBaseTest)
         # FIXME: this test is non-deterministic based on time.time in _queueDispatchFanIn
         self.context.initialize() # queues the first task
         ran = runQueuedTasks(queueName=self.context.queueName)
-        ran = [re.sub(r'^(.+fan-in--step-[0-9]+-)[0-9]+(-.+)$', r'\1###\2', r) for r in ran] # hard to mock it out
         self.assertEqual(['instanceName--pseudo-init--pseudo-init--state-continuation--step-0', 
                           'instanceName--continuation-0-1--pseudo-init--pseudo-init--state-continuation--step-0', 
                           'instanceName--continuation-0-2--pseudo-init--pseudo-init--state-continuation--step-0', 
                           'instanceName--continuation-0-3--pseudo-init--pseudo-init--state-continuation--step-0', 
                           'instanceName--continuation-0-4--pseudo-init--pseudo-init--state-continuation--step-0', 
                           'instanceName--continuation-0-5--pseudo-init--pseudo-init--state-continuation--step-0', 
-                          'instanceName--state-continuation--next-event--state-fan-in--step-1-###-1', 
+                          'instanceName--state-continuation--next-event--state-fan-in--step-1-1', 
                           'instanceName--work-index-1--state-fan-in--next-event--state-final--step-2'], ran)
         self.assertEqual({'state-continuation': {'entry': 6, 'action': 5, 'continuation': 6, 'exit': 0},
                           'state-fan-in': {'entry': 1, 'action': 1, 'exit': 0, 
@@ -747,14 +744,13 @@ class RunTasksTests_DatastoreFSMContinuationNoFinalAction(RunTasksBaseTest):
         # FIXME: this test is non-deterministic based on time.time in _queueDispatchFanIn
         self.context.initialize() # queues the first task
         ran = runQueuedTasks(queueName=self.context.queueName)
-        ran = [re.sub(r'^(.+fan-in--step-[0-9]+-)[0-9]+(-.+)$', r'\1###\2', r) for r in ran] # hard to mock it out
         self.assertEqual(['instanceName--pseudo-init--pseudo-init--state-continuation--step-0', 
                           'instanceName--continuation-0-1--pseudo-init--pseudo-init--state-continuation--step-0', 
                           'instanceName--continuation-0-2--pseudo-init--pseudo-init--state-continuation--step-0', 
                           'instanceName--continuation-0-3--pseudo-init--pseudo-init--state-continuation--step-0', 
                           'instanceName--continuation-0-4--pseudo-init--pseudo-init--state-continuation--step-0', 
                           'instanceName--continuation-0-5--pseudo-init--pseudo-init--state-continuation--step-0', 
-                          'instanceName--state-continuation--next-event--state-fan-in--step-1-###-1', 
+                          'instanceName--state-continuation--next-event--state-fan-in--step-1-1', 
                           'instanceName--work-index-1--state-fan-in--next-event--state-final--step-2',
                           'instanceName--work-index-1--state-final--pseudo-final--pseudo-final--step-3'], ran)
         self.assertEqual({'state-continuation': {'entry': 6, 'action': 5, 'continuation': 6, 'exit': 0},
@@ -1065,7 +1061,6 @@ class RunTasksWithFailuresTests_DatastoreFSMContinuationFanInTests(RunTasksBaseT
         overrideFails(self.machineConfig, [('state-initial', 'entry', 1)], [])
         self.context.initialize() # queues the first task
         ran = runQueuedTasks(queueName=self.context.queueName)
-        ran = [re.sub(r'^(.+fan-in--step-[0-9]+-)[0-9]+(-.+)$', r'\1###\2', r) for r in ran] # hard to mock it out
         self.assertEqual(['instanceName--pseudo-init--pseudo-init--state-initial--step-0', 
                           'instanceName--pseudo-init--pseudo-init--state-initial--step-0', 
                           'instanceName--state-initial--next-event--state-continuation--step-1', 
@@ -1074,7 +1069,7 @@ class RunTasksWithFailuresTests_DatastoreFSMContinuationFanInTests(RunTasksBaseT
                           'instanceName--continuation-1-3--state-initial--next-event--state-continuation--step-1', 
                           'instanceName--continuation-1-4--state-initial--next-event--state-continuation--step-1', 
                           'instanceName--continuation-1-5--state-initial--next-event--state-continuation--step-1', 
-                          'instanceName--state-continuation--next-event--state-fan-in--step-2-###-1', 
+                          'instanceName--state-continuation--next-event--state-fan-in--step-2-1', 
                           'instanceName--work-index-1--state-fan-in--next-event--state-final--step-3'], ran)
         self.assertEqual({'state-initial': {'entry': 2, 'action': 1, 'exit': 0},
                           'state-continuation': {'entry': 6, 'action': 5, 'continuation': 6, 'exit': 0},
@@ -1090,7 +1085,6 @@ class RunTasksWithFailuresTests_DatastoreFSMContinuationFanInTests(RunTasksBaseT
         overrideFails(self.machineConfig, [('state-fan-in', 'entry', 1)], [])
         self.context.initialize() # queues the first task
         ran = runQueuedTasks(queueName=self.context.queueName)
-        ran = [re.sub(r'^(.+fan-in--step-[0-9]+-)[0-9]+(-.+)$', r'\1###\2', r) for r in ran] # hard to mock it out
         self.assertEqual(['instanceName--pseudo-init--pseudo-init--state-initial--step-0', 
                           'instanceName--state-initial--next-event--state-continuation--step-1', 
                           'instanceName--continuation-1-1--state-initial--next-event--state-continuation--step-1', 
@@ -1098,8 +1092,8 @@ class RunTasksWithFailuresTests_DatastoreFSMContinuationFanInTests(RunTasksBaseT
                           'instanceName--continuation-1-3--state-initial--next-event--state-continuation--step-1', 
                           'instanceName--continuation-1-4--state-initial--next-event--state-continuation--step-1', 
                           'instanceName--continuation-1-5--state-initial--next-event--state-continuation--step-1', 
-                          'instanceName--state-continuation--next-event--state-fan-in--step-2-###-1', 
-                          'instanceName--state-continuation--next-event--state-fan-in--step-2-###-1', 
+                          'instanceName--state-continuation--next-event--state-fan-in--step-2-1', 
+                          'instanceName--state-continuation--next-event--state-fan-in--step-2-1', 
                           'instanceName--work-index-1--state-fan-in--next-event--state-final--step-3'], ran)
         self.assertEqual({'state-initial': {'entry': 1, 'action': 1, 'exit': 0},
                           'state-continuation': {'entry': 6, 'action': 5, 'continuation': 6, 'exit': 0},
@@ -1110,7 +1104,7 @@ class RunTasksWithFailuresTests_DatastoreFSMContinuationFanInTests(RunTasksBaseT
                           'state-continuation--next-event': {'action': 0},
                           'state-fan-in--next-event': {'action': 0}}, 
                  getCounts(self.machineConfig))
-        self.assertEqual(0, _FantasmFanIn.all().count())
+        self.assertEqual(1, _FantasmFanIn.all().count())
         
 class RunTasksWithFailuresTests_DatastoreFSMContinuationFanInTests_POST(
                                                         RunTasksWithFailuresTests_DatastoreFSMContinuationFanInTests):

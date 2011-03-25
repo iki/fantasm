@@ -181,7 +181,7 @@ class Logger( object ):
             task = taskqueue.Task(url=LOG_URL, payload=serialized, 
                                   retry_options=taskqueue.TaskRetryOptions(task_retry_limit=20))
             # FIXME: a batch add may be more optimal, but there are quite a few more corners to deal with
-            taskqueue.Queue().add(task)
+            taskqueue.Queue(name=constants.DEFAULT_LOG_QUEUE_NAME).add(task)
             
         except taskqueue.TaskTooLargeError:
             logging.warning("fantasm log message too large - skipping persistent storage")

@@ -43,7 +43,7 @@ class EnumerateFantasmModels(object):
         ('_FantasmInstance', 'createdTime'), 
         ('_FantasmLog', 'time'), 
         ('_FantasmTaskSemaphore', 'createdTime'),
-        #('_FantasmFanIn', 'createdTime') # This shouldn't happen, so we maybe shouldn't scrub it?
+        ('_FantasmFanIn', 'createdTime')
     )
     
     def continuation(self, context, obj, token=None):

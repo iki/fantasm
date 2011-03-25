@@ -24,6 +24,8 @@ import datetime
 
 def decode(dct):
     """ Special handler for db.Key/datetime.datetime decoding """
+    if '__set__' in dct:
+        return set(dct['key'])
     if '__db.Key__' in dct:
         return db.Key(dct['key'])
     if '__db.Model__' in dct:
@@ -38,6 +40,8 @@ class Encoder(simplejson.JSONEncoder): # pylint: disable-msg=W0232
     # E0202: 36:Encoder.default: An attribute inherited from JSONEncoder hide this method
     def default(self, obj): # pylint: disable-msg=E0202
         """ see simplejson.JSONEncoder.default """
+        if isinstance(obj, set):
+            return {'__set__': True, 'key': list(obj)}
         if isinstance(obj, db.Key):
             return {'__db.Key__': True, 'key': str(obj)}
         if isinstance(obj, db.Model):
@@ -88,6 +92,7 @@ class JSONProperty(db.Property):
 class _FantasmFanIn( db.Model ):
     """ A model used to store FSMContexts for fan in """
     workIndex = db.StringProperty()
+    taskName = db.StringProperty()
     context = JSONProperty(indexed=False)
     createdTime = db.DateTimeProperty(auto_now_add=True)
     

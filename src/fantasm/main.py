@@ -40,6 +40,7 @@ def createApplication():
     """
     return webapp.WSGIApplication([
         (r"^/[^\/]+/fsm/.+",       handlers.FSMHandler),
+        (r"^/[^\/]+/cleanup/",     handlers.FSMFanInCleanupHandler),
         (r"^/[^\/]+/graphviz/.+",  handlers.FSMGraphvizHandler),
         (r"^/[^\/]+/log/",         handlers.FSMLogHandler),
         (r"^/[^\/]+/?",            console.Dashboard),

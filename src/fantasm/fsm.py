@@ -355,7 +355,7 @@ class FSMContext(dict):
         # using the current task name as a root to startStateMachine will make this idempotent
         taskName = self.__obj[constants.TASK_NAME_PARAM]
         startStateMachine(machineName, contexts, taskName=taskName, method=method, countdown=countdown, 
-                          _currentConfig=_currentConfig)
+                          _currentConfig=_currentConfig, headers=self.headers)
     
     def initialize(self):
         """ Initializes the FSMContext. Queues a Task (so that we can benefit from auto-retry) to dispatch
@@ -404,7 +404,7 @@ class FSMContext(dict):
                 try:
                     if tasks:
                         transition = self.currentState.getTransition(nextEvent)
-                        self.Queue(name=transition.queueName).add(tasks)
+                        _queueTasks(self.Queue, transition.queueName, tasks)
                 
                 except (TaskAlreadyExistsError, TombstonedTaskError):
                     # unlike a similar block in self.continutation, this is well off the happy path
@@ -545,7 +545,7 @@ class FSMContext(dict):
         # we pop this off here because we do not want the fan-out/continuation param as part of the
         # task name, otherwise we loose the fan-in - each fan-in gets one work unit.
         self.pop(constants.GEN_PARAM, None)
-        self.pop(constants.FORK_PARAM, None)
+        fork = self.pop(constants.FORK_PARAM, None)
         
         taskNameBase = self.getTaskName(nextEvent, fanIn=True)
         index = memcache.get('index-' + taskNameBase)
@@ -569,7 +569,8 @@ class FSMContext(dict):
         
         # insert the work package, which is simply a serialized FSMContext
         workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
-        work = _FantasmFanIn(context=self, workIndex=workIndex)
+        keyName = '-'.join([str(i) for i in [self.__obj.get(constants.TASK_NAME_PARAM), fork] if i]) or None
+        work = _FantasmFanIn(context=self, workIndex=workIndex, key_name=keyName)
         work.put()
         
         # insert a task to run in the future and process a bunch of work packages
@@ -578,11 +579,7 @@ class FSMContext(dict):
             self[constants.INDEX_PARAM] = index
             url = self.buildUrl(self.currentState, nextEvent)
             params = self.buildParams(self.currentState, nextEvent)
-            # int(now / (fanInPeriod - 1 + 30)) included because it was in [2], but is less needed now that
-            # we use random.randint in seeding memcache. for long fan in periods, and the case where random.randint
-            # hits the same value twice, this may cause problems for up to fanInPeriod + 30s.
-            # see: http://www.mail-archive.com/google-appengine@googlegroups.com/msg30408.html
-            task = Task(name='%s-%d-%d' % (taskNameBase, int(now / (fanInPeriod - 1 + 30)), index),
+            task = Task(name='%s-%d' % (taskNameBase, index),
                         method=self.method,
                         url=url,
                         params=params,
@@ -633,75 +630,43 @@ class FSMContext(dict):
         #        to sweep up later?
         if i >= (busyWaitIters - 1): # pylint: disable-msg=W0631
             self.logger.error("Gave up waiting for all fan-in work items.")
-        
-        # at this point we could have two tasks trying to process the same work packages. in the
-        # happy path this will not likely happen because the tasks are sent off with different ETAs,
-        # however in the unhappy path, it is possible for multiple tasks to be executing (retry on
-        # 500 etc.). we solve this with a read lock using memcache.
-        #
-        # FIXME: would using a transaction on db.delete work if using ancestors? one task would win the
-        #        race to delete the the work based on a transaction error?
-        readlock = '%s-readlock-%d' % (taskNameBase, index)
-        haveReadLock = False
-        try:
-            # put the actual name of the winning task into to lock
-            actualTaskName = self.get(constants.TASK_NAME_PARAM)
-            added = memcache.add(readlock, actualTaskName, time=30) # FIXME: is 30s appropriate?
-            lockValue = memcache.get(readlock)
-            
-            # and return the FSMContexts list
-            class FSMContextList(list):
-                """ A list that supports .logger.info(), .logger.warning() etc.for fan-in actions """
-                def __init__(self, context, contexts):
-                    """ setup a self.logger for fan-in actions """
-                    super(FSMContextList, self).__init__(contexts)
-                    self.logger = Logger(context)
-                    self.instanceName = context.instanceName
-            
-            # if the lock value is not equal to the added value, it means this task lost the race
-            if not added or lockValue != actualTaskName:
-                return FSMContextList(self, [])
-#                raise FanInReadLockFailureRuntimeError(event, 
-#                                                       self.machineName, 
-#                                                       self.currentState.name, 
-#                                                       self.instanceName)
-            
-            # flag used in finally block to decide whether or not to log an error message
-            haveReadLock = True
-                
-            # fetch all the work packages in the current group for processing
-            workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
-            query = _FantasmFanIn.all() \
-                                 .filter('workIndex =', workIndex) \
-                                 .order('__key__')
-                                 
-            # iterate over the query to fetch results - this is done in 'small batches'
-            fanInResults = list(query)
-            
-            # construct a list of FSMContexts
-            contexts = [self.clone(data=r.context) for r in fanInResults]
 
-            # hold the fanInResult around in case we need to re-put them (on an Exception)
-            obj[constants.FAN_IN_RESULTS_PARAM] = fanInResults
-            
-            # and delete the work packages - bearing in mind appengine limits
-            maxDeleteSize = 250 # appengine does not like to delete > 500 models at a time, 250 is a nice safe number
-            if len(fanInResults) > maxDeleteSize:
-                self.logger.warning("%d contexts in the current batch. Consider decreasing fan-in.", len(fanInResults))
-            i = 0
-            while fanInResults[i:i+maxDeleteSize]:
-                db.delete(fanInResults[i:i+maxDeleteSize])
-                i += maxDeleteSize
+        # and return the FSMContexts list
+        class FSMContextList(list):
+            """ A list that supports .logger.info(), .logger.warning() etc.for fan-in actions """
+            def __init__(self, context, contexts):
+                """ setup a self.logger for fan-in actions """
+                super(FSMContextList, self).__init__(contexts)
+                self.logger = Logger(context)
+                self.instanceName = context.instanceName
                 
-            return FSMContextList(self, contexts)
+        # the following step ensure that fan-in only ever operates one time over a list of data
+        # the entity is created in State.dispatch(...) _after_ all the actions have executed
+        # successfully
+        #
+        # FIXME: refactor into a cleaner interface once satisfied with performance
+        #
+        def txn():
+            """ txn """
+            workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
+            idem = _FantasmFanIn.get_by_key_name(workIndex)
+            return idem
+        idem = db.run_in_transaction(txn)
+        if idem:
+            self.logger.info("Fan-in idempotency guard, not processing any work items.")
+            if idem.taskName != self.__obj.get(constants.TASK_NAME_PARAM):
+                self.logger.critical("Fan-in idempotency guard fatal error - fsm.py.")
+            return FSMContextList(self, []) # don't operate over the data again
+            
+        # fetch all the work packages in the current group for processing
+        workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
+        query = _FantasmFanIn.all() \
+                             .filter('workIndex =', workIndex) \
+                             .order('__key__')
+        # construct a list of FSMContexts
+        contexts = [self.clone(data=r.context) for r in query]
+        return FSMContextList(self, contexts)
         
-        finally:
-            deleted = memcache.delete(readlock)
-            
-            # FIXME: is there anything else that can be done? 
-            if haveReadLock and deleted == memcache.DELETE_NETWORK_FAILURE:
-                self.logger.error("Unable to release the fan in read lock.")
-                
     def _getTaskRetryLimit(self):
         """ Method that returns the maximum number of retries for this particular dispatch 
         
@@ -738,19 +703,6 @@ class FSMContext(dict):
                             '(Machine %s, State %s)',
                             self.machineName, self.startingState.name, exc_info=True)
             
-            # re-put fan-in work packages
-            if obj.get(constants.FAN_IN_RESULTS_PARAM):
-                try:
-                    fanInResults = obj[constants.FAN_IN_RESULTS_PARAM]
-                    maxPutSize = 250 # put in chunks, rather than the entire list which could be large
-                    i = 0
-                    while(fanInResults[i:i+maxPutSize]):
-                        db.put(fanInResults[i:i+maxPutSize])
-                        i += maxPutSize
-                except Exception:
-                    self.logger.critical("Unable to re.put() for workIndex = %s", self.fanInResults[0].workIndex)
-                    raise
-                
             # this line really just allows unit tests to work - the request is really dead at this point
             self.currentState = self.startingState
             
@@ -834,6 +786,47 @@ class FSMContext(dict):
         if data:
             context.update(data)
         return context
+    
+# pylint: disable-msg=C0103
+def _queueTasks(Queue, queueName, tasks):
+    """
+    Add a list of Tasks to the supplied Queue/queueName
+    
+    @param Queue: taskqueue.Queue or other object with .add() method
+    @param queueName: a queue name from queue.yaml
+    @param tasks: a list of taskqueue.Tasks
+    
+    @raise TaskAlreadyExistsError: 
+    @raise TombstonedTaskError: 
+    """
+    
+    from google.appengine.api.taskqueue.taskqueue import MAX_TASKS_PER_ADD
+    taskAlreadyExists, tombstonedTask = None, None
+
+    # queue the Tasks in groups of MAX_TASKS_PER_ADD
+    i = 0
+    for i in xrange(len(tasks)):
+        someTasks = tasks[i * MAX_TASKS_PER_ADD : (i+1) * MAX_TASKS_PER_ADD]
+        if not someTasks:
+            break
+        
+        # queue them up, and loop back for more, even if there are failures
+        try:
+            Queue(name=queueName).add(someTasks)
+                
+        except TaskAlreadyExistsError, e:
+            taskAlreadyExists = e
+            
+        except TombstonedTaskError, e:
+            tombstonedTask = e
+            
+    if taskAlreadyExists:
+        # pylint: disable-msg=E0702
+        raise taskAlreadyExists
+    
+    if tombstonedTask:
+        # pylint: disable-msg=E0702
+        raise tombstonedTask
 
 def startStateMachine(machineName, contexts, taskName=None, method='POST', countdown=0,
                       _currentConfig=None, headers=None):
@@ -844,6 +837,7 @@ def startStateMachine(machineName, contexts, taskName=None, method='POST', count
     @param taskName used for idempotency; will become the root of the task name for the actual task queued
     @param method the HTTP methld (GET/POST) to run the machine with (default 'POST')
     @param countdown the number of seconds into the future to start the machine (default 0 - immediately)
+                     or a list of sumber of seconds (must be same length as contexts)
     @param headers: a dict of X-Fantasm request headers to pass along in Tasks 
     
     @param _currentConfig used for test injection (default None - use fsm.yaml definitions)
@@ -852,6 +846,8 @@ def startStateMachine(machineName, contexts, taskName=None, method='POST', count
         return
     if not isinstance(contexts, list):
         contexts = [contexts]
+    if not isinstance(countdown, list):
+        countdown = [countdown] * len(contexts)
         
     # FIXME: I shouldn't have to do this.
     for context in contexts:
@@ -867,13 +863,13 @@ def startStateMachine(machineName, contexts, taskName=None, method='POST', count
         tname = None
         if taskName:
             tname = '%s--startStateMachine-%d' % (taskName, i)
-        task = instance.generateInitializationTask(countdown=countdown, taskName=tname)
+        task = instance.generateInitializationTask(countdown=countdown[i], taskName=tname)
         tasks.append(task)
 
     queueName = instances[0].queueName # same machineName, same queues
     try:
         from google.appengine.api.taskqueue.taskqueue import Queue
-        Queue(name=queueName).add(tasks)
+        _queueTasks(Queue, queueName, tasks)
     except (TaskAlreadyExistsError, TombstonedTaskError):
         # FIXME: what happens if _some_ of the tasks were previously enqueued?
         # normal result for idempotency

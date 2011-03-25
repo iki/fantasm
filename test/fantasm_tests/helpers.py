@@ -13,6 +13,7 @@ from fantasm import config
 from fantasm.fsm import FSM
 from fantasm.handlers import FSMLogHandler
 from fantasm.handlers import FSMHandler
+from fantasm.handlers import FSMFanInCleanupHandler
 from fantasm.log import LOG_URL
 from fantasm.log import Logger
 from google.appengine.ext import webapp
@@ -165,7 +166,10 @@ def runQueuedTasks(queueName='default', assertTasks=True):
                     continue
                 
             record = True
-            if task['url'] == '/fantasm/log/':
+            if task['url'] == '/fantasm/cleanup/':
+                record = False
+                handler = FSMFanInCleanupHandler()
+            elif task['url'] == '/fantasm/log/':
                 record = False
                 handler = FSMLogHandler()
             else:
