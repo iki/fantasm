@@ -12,7 +12,7 @@ from fantasm_tests.helpers import getCounts
 from fantasm_tests.fixtures import AppEngineTestCase
 from fantasm_tests.fsm_test import TestModel
 from fantasm_tests.actions import ContextRecorder, CountExecuteCallsFanIn, TestFileContinuationFSMAction, \
-                                  DoubleContinuation1, DoubleContinuation2
+                                  DoubleContinuation1, DoubleContinuation2, ResultModel
 from minimock import mock, restore
 from google.appengine.api import datastore_types
 
@@ -580,7 +580,7 @@ class RunTasksTests_DatastoreFSMContinuationFanInAndForkTests(RunTasksBaseTest):
                           'state-continuation-and-fork--next-event': {'action': 0},
                           'state-fan-in--next-event': {'action': 0}}, 
                          getCounts(self.machineConfig))
-        self.assertEqual(1, _FantasmFanIn.all().count())
+        self.assertEqual(0, _FantasmFanIn.all().count())
         # pylint: disable-msg=C0301
         # - long lines are much clearer in htis case
         self.assertEqual([{u'__count__': 2, u'key': datastore_types.Key.from_path(u'TestModel', '3', _app=u'fantasm'), 'data': {'a': 'b'}, u'__step__': 1, u'__ix__': 1}, 
@@ -660,11 +660,14 @@ class RunTasksTests_DatastoreFSMContinuationFanInTests(RunTasksBaseTest):
                           'state-continuation--next-event': {'action': 0},
                           'state-fan-in--next-event': {'action': 0}}, 
                  getCounts(self.machineConfig))
-        self.assertEqual([{u'__ix__': 1, u'__count__': 2, u'__step__': 2}, 
-                          {u'__ix__': 1, u'__count__': 3, u'__step__': 2}, 
-                          {u'__ix__': 1, u'__count__': 4, u'__step__': 2}, 
-                          {u'__ix__': 1, u'__count__': 5, u'__step__': 2}, 
-                          {u'__ix__': 1, u'__count__': 1, u'__step__': 2}], CountExecuteCallsFanIn.CONTEXTS)
+        # pylint: disable-msg=C0301
+        self.assertEqual([{u'__ix__': 1, u'__count__': 2, u'__step__': 2, 'fan-me-in': [datastore_types.Key.from_path(u'TestModel', u'2', _app=u'fantasm'), datastore_types.Key.from_path(u'TestModel', u'3', _app=u'fantasm')]}, 
+                          {u'__ix__': 1, u'__count__': 3, u'__step__': 2, 'fan-me-in': [datastore_types.Key.from_path(u'TestModel', u'4', _app=u'fantasm'), datastore_types.Key.from_path(u'TestModel', u'5', _app=u'fantasm')]}, 
+                          {u'__ix__': 1, u'__count__': 4, u'__step__': 2, 'fan-me-in': [datastore_types.Key.from_path(u'TestModel', u'6', _app=u'fantasm'), datastore_types.Key.from_path(u'TestModel', u'7', _app=u'fantasm')]}, 
+                          {u'__ix__': 1, u'__count__': 5, u'__step__': 2, 'fan-me-in': [datastore_types.Key.from_path(u'TestModel', u'8', _app=u'fantasm'), datastore_types.Key.from_path(u'TestModel', u'9', _app=u'fantasm')]}, 
+                          {u'__ix__': 1, u'__count__': 1, u'__step__': 2, 'fan-me-in': [datastore_types.Key.from_path(u'TestModel', u'0', _app=u'fantasm'), datastore_types.Key.from_path(u'TestModel', u'1', _app=u'fantasm')]}], CountExecuteCallsFanIn.CONTEXTS)
+        self.assertEqual(0, _FantasmFanIn.all().count())
+        self.assertEqual(10, ResultModel.get_by_key_name(self.context.instanceName).total)
         
 class RunTasksTests_DatastoreFSMContinuationFanInTests_POST(RunTasksTests_DatastoreFSMContinuationFanInTests):
     METHOD = 'POST'
@@ -1080,6 +1083,10 @@ class RunTasksWithFailuresTests_DatastoreFSMContinuationFanInTests(RunTasksBaseT
                           'state-continuation--next-event': {'action': 0},
                           'state-fan-in--next-event': {'action': 0}}, 
                  getCounts(self.machineConfig))
+        self.assertEqual(10, TestModel.all().count())
+        self.assertEqual(1, ResultModel.all().count())
+        self.assertEqual(self.context.instanceName, ResultModel.all().get().key().name())
+        self.assertEqual(10, ResultModel.get_by_key_name(self.context.instanceName).total)
         
     def test_DatastoreFSMContinuationTests_fan_in_state_entry(self):
         overrideFails(self.machineConfig, [('state-fan-in', 'entry', 1)], [])
@@ -1104,7 +1111,8 @@ class RunTasksWithFailuresTests_DatastoreFSMContinuationFanInTests(RunTasksBaseT
                           'state-continuation--next-event': {'action': 0},
                           'state-fan-in--next-event': {'action': 0}}, 
                  getCounts(self.machineConfig))
-        self.assertEqual(1, _FantasmFanIn.all().count())
+        self.assertEqual(0, _FantasmFanIn.all().count())
+        self.assertEqual(10, ResultModel.get_by_key_name(self.context.instanceName).total)
         
 class RunTasksWithFailuresTests_DatastoreFSMContinuationFanInTests_POST(
                                                         RunTasksWithFailuresTests_DatastoreFSMContinuationFanInTests):

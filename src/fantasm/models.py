@@ -92,7 +92,6 @@ class JSONProperty(db.Property):
 class _FantasmFanIn( db.Model ):
     """ A model used to store FSMContexts for fan in """
     workIndex = db.StringProperty()
-    taskName = db.StringProperty()
     context = JSONProperty(indexed=False)
     createdTime = db.DateTimeProperty(auto_now_add=True)
     
@@ -117,3 +116,4 @@ class _FantasmLog( db.Model ):
 class _FantasmTaskSemaphore( db.Model ):
     """ A model that simply stores the task name so that we can guarantee only-once semantics. """
     createdTime = db.DateTimeProperty(auto_now_add=True)
+    payload = db.StringProperty()

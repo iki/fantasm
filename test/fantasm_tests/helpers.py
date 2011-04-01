@@ -5,16 +5,17 @@ import logging
 import time
 import datetime
 import base64
+import tempfile
 from collections import defaultdict
 from minimock import mock
 import google.appengine.api.apiproxy_stub_map as apiproxy_stub_map
 import fantasm
+from fantasm import constants
 from fantasm import config
 from fantasm.fsm import FSM
 from fantasm.handlers import FSMLogHandler
 from fantasm.handlers import FSMHandler
 from fantasm.handlers import FSMFanInCleanupHandler
-from fantasm.log import LOG_URL
 from fantasm.log import Logger
 from google.appengine.ext import webapp
 from google.appengine.api.taskqueue.taskqueue import TaskAlreadyExistsError
@@ -57,14 +58,14 @@ class TaskQueueDouble(object):
             for task in tasks:
                 if task.name in self.tasknames:
                     raise TaskAlreadyExistsError()
-                if task.url != LOG_URL: # avoid fragile unit tests
+                if task.url != constants.DEFAULT_LOG_URL: # avoid fragile unit tests
                     self.tasknames.add(task.name)
                     self.tasks.append((task, transactional))
         else:
             task = task_or_tasks
             if task.name in self.tasknames:
                 raise TaskAlreadyExistsError()
-            if task.url != LOG_URL: # avoid fragile unit tests
+            if task.url != constants.DEFAULT_LOG_URL: # avoid fragile unit tests
                 self.tasknames.add(task.name)
                 self.tasks.append((task, transactional))
 
@@ -131,15 +132,14 @@ def getLoggingDouble():
     mock(name='Logger.getLoggingMap', returns_func=getLoggingMap, tracker=None)
     return loggingDouble
 
-def runQueuedTasks(queueName='default', assertTasks=True):
+def runQueuedTasks(queueName='default', assertTasks=True, tasksOverride=None, speedup=True):
     """ Ability to run Tasks from unit/integration tests """
     # pylint: disable-msg=W0212
     #         allow access to protected member _IsValidQueue
     tq = apiproxy_stub_map.apiproxy.GetStub('taskqueue')
-    assert tq._IsValidQueue(queueName, APP_ID)
     if assertTasks:
         assert tq.GetTasks(queueName)
-    
+        
     retries = {}
     runList = []
     alreadyRun = []
@@ -147,18 +147,21 @@ def runQueuedTasks(queueName='default', assertTasks=True):
     while runAgain:
         
         runAgain = False
-        tasks = tq.GetTasks(queueName)
+        tasks = tasksOverride or tq.GetTasks(queueName)
         lastRunList = list(runList)
-            
+        
         for task in tasks:
             
             if task['name'] in alreadyRun:
                 continue
             
             if task.has_key('eta'):
+                
+                UTC_OFFSET_TIMEDELTA = datetime.datetime.utcnow() - datetime.datetime.now()
                 now = datetime.datetime.utcfromtimestamp(time.time())
-                eta = datetime.datetime.strptime(task['eta'], "%Y/%m/%d %H:%M:%S")
-                if runList == lastRunList:
+                eta = datetime.datetime.strptime(task['eta'], "%Y/%m/%d %H:%M:%S") - UTC_OFFSET_TIMEDELTA
+                
+                if speedup and (runList == lastRunList):
                     # nothing ran list loop around, just force this task to speedup the tests
                     pass
                 elif eta > now:
@@ -166,10 +169,10 @@ def runQueuedTasks(queueName='default', assertTasks=True):
                     continue
                 
             record = True
-            if task['url'] == '/fantasm/cleanup/':
+            if task['url'] == constants.DEFAULT_CLEANUP_URL:
                 record = False
                 handler = FSMFanInCleanupHandler()
-            elif task['url'] == '/fantasm/log/':
+            elif task['url'] == constants.DEFAULT_LOG_URL:
                 record = False
                 handler = FSMLogHandler()
             else:
@@ -185,6 +188,7 @@ def runQueuedTasks(queueName='default', assertTasks=True):
             environ['REQUEST_METHOD'] = task['method']
             
             handler.request = webapp.Request(environ)
+            handler.response = webapp.Response()
             
             if task['method'] == 'POST':
                 handler.request.body = base64.decodestring(task['body'])
@@ -246,7 +250,8 @@ def setUpByFilename(obj, filename, machineName=None, instanceName=None, taskRetr
     @param taskRetryLimitOverrides: a dict of {'transitionName' : taskRetryLimit} use to override values in .yaml 
     """
     obj.machineName = machineName or filename.replace('test-', '').replace('.yaml', '')
-    filename = os.path.join(os.path.dirname(__file__), 'yaml', filename)
+    if not filename.startswith('/'):
+        filename = os.path.join(os.path.dirname(__file__), 'yaml', filename)
     obj.currentConfig = config.loadYaml(filename=filename)
     obj.machineConfig = obj.currentConfig.machines[obj.machineName]
     if taskRetryLimitOverrides:
@@ -254,6 +259,18 @@ def setUpByFilename(obj, filename, machineName=None, instanceName=None, taskRetr
     obj.factory = FSM(currentConfig=obj.currentConfig)
     obj.context = obj.factory.createFSMInstance(obj.machineConfig.name, instanceName=instanceName, method=method)
     obj.initialState = obj.context.initialState
+    
+def setUpByString(obj, yaml, machineName=None):
+    """ Configures obj (a unittest.TestCase instance) with obj.context 
+    
+    @param obj: a unittest.TestCase instance
+    @param yaml: a yaml string 
+    """
+    f = tempfile.NamedTemporaryFile()
+    f.write(yaml)
+    f.flush()
+    setUpByFilename(obj, f.name, machineName=machineName)
+    f.close()
 
 class ZeroCountMock(object):
     count = 0

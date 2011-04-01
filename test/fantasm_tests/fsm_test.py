@@ -177,7 +177,8 @@ class FSMContextMergeJoinTests(AppEngineTestCase):
                                   currentState=self.state, 
                                   machineName='machineName', 
                                   instanceName='instanceName',
-                                  queueName='qq')
+                                  queueName='qq',
+                                  obj={TASK_NAME_PARAM: 'taskName'})
         self.context[INDEX_PARAM] = 1
         self.context[STEPS_PARAM] = 0
         
@@ -622,11 +623,11 @@ class DatastoreFSMContinuationFanInTests(DatastoreFSMContinuationBaseTests):
         
         event = self.context.dispatch(event, TemporaryStateObject())
         self.assertEqual('state-fan-in', self.context.currentState.name)
-        self.assertEqual(1+1, _FantasmFanIn.all().count())
+        self.assertEqual(1, _FantasmFanIn.all().count())
         
         event = self.context.dispatch(event, TemporaryStateObject())
         self.assertEqual('state-final', self.context.currentState.name)
-        self.assertEqual(1+1, _FantasmFanIn.all().count())
+        self.assertEqual(1, _FantasmFanIn.all().count())
         
     def test_DatastoreFSMContinuationFanInTests_write_lock_error(self):
         obj = TemporaryStateObject()
@@ -694,11 +695,11 @@ class DatastoreFSMContinuationFanInTests(DatastoreFSMContinuationBaseTests):
         
         event = self.context.dispatch(event, TemporaryStateObject())
         self.assertEqual('state-fan-in', self.context.currentState.name)
-        self.assertEqual(1 + 1, _FantasmFanIn.all().count())
+        self.assertEqual(1, _FantasmFanIn.all().count())
         
         event = self.context.dispatch(event, TemporaryStateObject())
         self.assertEqual('state-final', self.context.currentState.name)
-        self.assertEqual(1 + 1, _FantasmFanIn.all().count())
+        self.assertEqual(1, _FantasmFanIn.all().count())
 
 class ContextTypesCoercionTests(unittest.TestCase):
     

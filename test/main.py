@@ -89,10 +89,25 @@ class MakeAModel(webapp.RequestHandler):
     
     def get(self):
         TestModel(prop1=str(uuid.uuid4())).put()
+        
+class Start100ComplexMachine(webapp.RequestHandler):
+    
+    def get(self):
+        import fantasm
+        fantasm.fsm.startStateMachine('ComplexMachine', [{}] * 100)
+        
+class Start100ComplexMachineCountdown(webapp.RequestHandler):
+    
+    def get(self):
+        import fantasm
+        fantasm.fsm.startStateMachine('ComplexMachine', [{}] * 100, countdown=[i*300 for i in range(100)])
+        
 
 application = webapp.WSGIApplication([
     ('/', HomePage), 
     ('/MakeAModel/', MakeAModel),
+    ('/Start100ComplexMachine/', Start100ComplexMachine),
+    ('/Start100ComplexMachineCountdown/', Start100ComplexMachineCountdown),
     ('/create-subscribers/', email_batch.CreateSubscribers),
     ('/backup/populate/', backup.PopulateBackupExample)
 ], debug=True)

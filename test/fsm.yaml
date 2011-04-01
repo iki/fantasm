@@ -100,6 +100,7 @@ state_machines:
 - name: ComplexMachine
   namespace: complex_machine
   task_retry_limit: 2
+  logging: persistent
   
   context_types:
     key: google.appengine.ext.db.Key

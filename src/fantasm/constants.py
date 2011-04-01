@@ -72,15 +72,19 @@ DEFAULT_TASK_AGE_LIMIT = None
 DEFAULT_MAX_DOUBLINGS = None
 DEFAULT_QUEUE_NAME = 'default'
 DEFAULT_LOG_QUEUE_NAME = DEFAULT_QUEUE_NAME
+DEFAULT_CLEANUP_QUEUE_NAME = DEFAULT_QUEUE_NAME
 
 NO_FAN_IN = -1
 DEFAULT_FAN_IN_PERIOD = NO_FAN_IN # fan_in period (in seconds)
+DATASTORE_ASYNCRONOUS_INDEX_WRITE_WAIT_TIME = 5.0 # seconds
 
 DEFAULT_COUNTDOWN = 0
 
 YAML_NAMES = ('fsm.yaml', 'fsm.yml', 'fantasm.yaml', 'fantasm.yml')
 
 DEFAULT_ROOT_URL = '/fantasm/' # where all the fantasm handlers are mounted
+DEFAULT_LOG_URL = '/fantasm/log/'
+DEFAULT_CLEANUP_URL = '/fantasm/cleanup/'
 
 ### attribute names for YAML parsing
 

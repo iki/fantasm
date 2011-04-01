@@ -30,6 +30,7 @@ from fantasm.constants import NON_CONTEXT_PARAMS, STATE_PARAM, EVENT_PARAM, INST
                               HTTP_REQUEST_HEADER_PREFIX
 from fantasm.exceptions import UnknownMachineError, RequiredServicesUnavailableRuntimeError, FSMRuntimeError
 from fantasm.models import _FantasmTaskSemaphore, Encoder, _FantasmFanIn
+from fantasm.lock import RunOnceSemaphore
 
 REQUIRED_SERVICES = ('memcache', 'datastore_v3', 'taskqueue')
 
@@ -151,8 +152,10 @@ class FSMHandler(webapp.RequestHandler):
     def handle_exception(self, exception, debug_mode): # pylint: disable-msg=C0103
         """ Delegates logging to the FSMContext logger """
         self.error(500)
+        logger = logging
         if self.fsm:
-            self.fsm.logger.exception("FSMHandler caught Exception")
+            logger = self.fsm.logger
+        logger.exception("FSMHandler caught Exception")
         if debug_mode:
             import traceback, sys, cgi
             lines = ''.join(traceback.format_exception(*sys.exc_info()))
@@ -168,7 +171,7 @@ class FSMHandler(webapp.RequestHandler):
         # ensure that we have our services for the next 30s (length of a single request)
         unavailable = set()
         for service in REQUIRED_SERVICES:
-            if not CapabilitySet(service).will_remain_enabled_for(constants.REQUEST_LENGTH):
+            if not CapabilitySet(service).is_enabled():
                 unavailable.add(service)
         if unavailable:
             raise RequiredServicesUnavailableRuntimeError(unavailable)
@@ -183,8 +186,9 @@ class FSMHandler(webapp.RequestHandler):
         # Taskqueue can invoke multiple tasks of the same name occassionally. Here, we'll use
         # a datastore transaction as a semaphore to determine if we should actually execute this or not.
         if taskName:
-            firstExecution = db.run_in_transaction(self.__isFirstExecution, taskName, retryCount)
-            if not firstExecution:
+            semaphoreKey = '%s--%s' % (taskName, retryCount)
+            semaphore = RunOnceSemaphore(semaphoreKey, None)
+            if not semaphore.writeRunOnceSemaphore()[0]:
                 # we can simply return here, this is a duplicate fired task
                 logging.info('A duplicate task "%s" has been queued by taskqueue infrastructure. Ignoring.', taskName)
                 self.response.status_code = 200
@@ -289,13 +293,3 @@ class FSMHandler(webapp.RequestHandler):
                 'context': fsm,
             }
             self.response.out.write(simplejson.dumps(data, cls=Encoder))
-
-    def __isFirstExecution(self, taskName, retryCount):
-        """ Ensures that the task has not been executed before. Meant to be run in a transaction. """
-        firstExecution = False
-        keyName = '%s--%s' % (taskName, retryCount)
-        existingTaskName = _FantasmTaskSemaphore.get_by_key_name(keyName)
-        if not existingTaskName:
-            _FantasmTaskSemaphore(key_name=keyName).put()
-            firstExecution = True
-        return firstExecution

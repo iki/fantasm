@@ -26,7 +26,6 @@ from fantasm.models import _FantasmLog
 from fantasm import constants
 from google.appengine.api.taskqueue import taskqueue
 
-LOG_URL = '/fantasm/log/'
 LOG_ERROR_MESSAGE = 'Exception constructing log message. Please adjust your usage of context.logger.'
 
 def _log(instanceName, 
@@ -178,7 +177,8 @@ class Logger( object ):
                                         **kwargs)
         
         try:
-            task = taskqueue.Task(url=LOG_URL, payload=serialized, 
+            task = taskqueue.Task(url=constants.DEFAULT_LOG_URL, 
+                                  payload=serialized, 
                                   retry_options=taskqueue.TaskRetryOptions(task_retry_limit=20))
             # FIXME: a batch add may be more optimal, but there are quite a few more corners to deal with
             taskqueue.Queue(name=constants.DEFAULT_LOG_QUEUE_NAME).add(task)

@@ -17,13 +17,14 @@ Copyright 2010 VendAsta Technologies Inc.
    limitations under the License.
 """
 from google.appengine.ext import db
-from google.appengine.api.taskqueue.taskqueue import Task
+from google.appengine.api.taskqueue.taskqueue import Task, TaskAlreadyExistsError, TombstonedTaskError
 
 from fantasm import constants
 from fantasm.transition import Transition
 from fantasm.exceptions import UnknownEventError, InvalidEventNameRuntimeError
 from fantasm.utils import knuthHash
 from fantasm.models import _FantasmFanIn
+from fantasm.lock import RunOnceSemaphore
 
 class State(object):
     """ A state object for a machine. """
@@ -161,32 +162,24 @@ class State(object):
                               context.currentState.doAction.__class__)
                 raise
             
-        # this prevents fan-in from re-counting the data if there is an Exception
-        # or DeadlineExceeded _after_ doAction.execute(...) succeeds
-        #
-        # FIXME: refactor into a cleaner interface once satisfied with performance
-        #
         if transition.target.isFanIn:
-            # create a fan-in guard for workIndex
+            
+            # this prevents fan-in from re-counting the data if there is an Exception
+            # or DeadlineExceeded _after_ doAction.execute(...) succeeds
             index = context.get(constants.INDEX_PARAM)
             workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
-            def txn():
-                """ txn """
-                idem = _FantasmFanIn.get_by_key_name(workIndex)
-                if idem:
-                    if idem.taskName != obj.get(constants.TASK_NAME_PARAM):
-                        context.logger.critical("Fan-in idempotency guard fatal error - state.py.")
-                else:
-                    _FantasmFanIn(key_name=workIndex, 
-                                  taskName=obj.get(constants.TASK_NAME_PARAM)).put()
-                return idem
-            # run it all in a transaction to avoid a race
-            db.run_in_transaction(txn)
-            # at this point we have processed the work items, delete them
-            task = Task(name=obj.get(constants.TASK_NAME_PARAM, '') + 'cleanup', 
-                        url=constants.DEFAULT_ROOT_URL + 'cleanup/', 
-                        params={'workIndex': workIndex})
-            context.Queue(name=transition.queueName).add(task)
+            semaphore = RunOnceSemaphore(workIndex, context)
+            semaphore.writeRunOnceSemaphore(obj.get(constants.TASK_NAME_PARAM))
+            
+            try:
+                # at this point we have processed the work items, delete them
+                task = Task(name=obj.get(constants.TASK_NAME_PARAM, '') + '-cleanup', 
+                            url=constants.DEFAULT_CLEANUP_URL, 
+                            params={'workIndex': workIndex})
+                context.Queue(name=constants.DEFAULT_CLEANUP_QUEUE_NAME).add(task)
+                
+            except (TaskAlreadyExistsError, TombstonedTaskError):
+                context.logger.info("Fan-in cleanup Task already exists.")
                 
         if nextEvent:
             if not isinstance(nextEvent, str) or not constants.NAME_RE.match(nextEvent):

@@ -93,10 +93,18 @@ class CountExecuteCallsFanInEntry(object):
     def event(self):
         return None
     
+class ResultModel( db.Model ):
+    total = db.IntegerProperty()
+    
 class CountExecuteCallsFanIn(CountExecuteCallsFanInEntry):
     CONTEXTS = []
     def execute(self, context, obj):
         CountExecuteCallsFanIn.CONTEXTS.extend(context)
+        result = ResultModel.get_by_key_name(context.instanceName)
+        if not result:
+            result = ResultModel(total=0, key_name=context.instanceName)
+        result.total += sum([len(c.get('fan-me-in', [])) for c in context])
+        result.put() # txn is overkill for this test
         return super(CountExecuteCallsFanIn, self).execute(context, obj)
     @property
     def event(self):
@@ -158,6 +166,7 @@ class TestDatastoreContinuationFSMAction(DatastoreContinuationFSMAction):
             return None
         self.count += 1
         context['__count__'] = self.count
+        context['fan-me-in'] = context.get('fan-me-in', []) + [r.key() for r in obj['results']]
         if self.count == self.failat:
             raise Exception()
         if self.fails:

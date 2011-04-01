@@ -43,11 +43,11 @@ from fantasm import constants, config
 from fantasm.log import Logger
 from fantasm.state import State
 from fantasm.transition import Transition
-from fantasm.exceptions import UnknownEventError, UnknownStateError, UnknownMachineError, \
-                               FanInWriteLockFailureRuntimeError
+from fantasm.exceptions import UnknownEventError, UnknownStateError, UnknownMachineError
 from fantasm.models import _FantasmFanIn, _FantasmInstance
 from fantasm import models
 from fantasm.utils import knuthHash
+from fantasm.lock import ReadWriteLock, RunOnceSemaphore
 
 class FSM(object):
     """ An FSMContext creation factory. This is primarily responsible for translating machine
@@ -548,34 +548,47 @@ class FSMContext(dict):
         fork = self.pop(constants.FORK_PARAM, None)
         
         taskNameBase = self.getTaskName(nextEvent, fanIn=True)
-        index = memcache.get('index-' + taskNameBase)
-        if index is None:
-            # using 'random.randint' here instead of '1' helps when the index is ejected from memcache
-            # instead of restarting at the same counter, we jump (likely) far way from existing task job
-            # names. 
-            memcache.add('index-' + taskNameBase, random.randint(1, 2**32))
-            index = memcache.get('index-' + taskNameBase)
+        rwlock = ReadWriteLock(taskNameBase, self)
+        index = rwlock.currentIndex()
             
-        # grab the lock
-        lock = '%s-lock-%d' % (taskNameBase, index)
-        writers = memcache.incr(lock, initial_value=2**16)
-        if writers < 2**16:
-            memcache.decr(lock)
-            # this will escape as a 500 error and the Task will be re-tried by appengine
-            raise FanInWriteLockFailureRuntimeError(nextEvent, 
-                                                    self.machineName, 
-                                                    self.currentState.name, 
-                                                    self.instanceName)
-        
-        # insert the work package, which is simply a serialized FSMContext
-        workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
-        keyName = '-'.join([str(i) for i in [self.__obj.get(constants.TASK_NAME_PARAM), fork] if i]) or None
-        work = _FantasmFanIn(context=self, workIndex=workIndex, key_name=keyName)
-        work.put()
-        
-        # insert a task to run in the future and process a bunch of work packages
-        now = time.time()
         try:
+            # grab the lock
+            rwlock.acquireWriteLock(index, nextEvent=nextEvent)
+            
+            # insert the work package, which is simply a serialized FSMContext
+            workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
+            
+            # on retry, we want to ensure we get the same work index for this task
+            # FIXME: however, what if this misses the boat?
+            # FIXME: maybe another fan-in task far in the future?
+            # FIXME: the semaphore and finally block below race a bit, but much better than prior attempts
+            actualTaskName = self.__obj.get(constants.TASK_NAME_PARAM)
+            indexKeyName = 'workIndex-' + '-'.join([str(i) for i in [actualTaskName, fork] if i]) or None
+            semaphore = RunOnceSemaphore(indexKeyName, self)
+            
+            # check if the workIndex changed during retry
+            if self.__obj.get(constants.RETRY_COUNT_PARAM) > 0:
+                payload = semaphore.readRunOnceSemaphore(payload=workIndex, transactional=False)
+                if payload and payload != workIndex:
+                    workIndex = payload
+                    
+            # write down two models, one actual work package, one idempotency package
+            keyName = '-'.join([str(i) for i in [actualTaskName, fork] if i]) or None
+            work = _FantasmFanIn(context=self, workIndex=workIndex, key_name=keyName)
+            
+            # close enough to idempotent, but could still write only one of the entities
+            # FIXME: could be made faster using a bulk put, but this interface is cleaner
+            semaphore.writeRunOnceSemaphore(payload=workIndex, transactional=False)
+            
+            # put the work item
+            db.put(work)
+            
+            # (A) now the datastore is asynchronously writing the indices, so the work package may
+            #     not show up in a query for a period of time. there is a corresponding time.sleep()
+            #     in the fan-in of self.mergeJoinDispatch(...) 
+            
+            # insert a task to run in the future and process a bunch of work packages
+            now = time.time()
             self[constants.INDEX_PARAM] = index
             url = self.buildUrl(self.currentState, nextEvent)
             params = self.buildParams(self.currentState, nextEvent)
@@ -587,10 +600,13 @@ class FSMContext(dict):
                         headers=self.headers)
             self.Queue(name=queueName).add(task)
             return task
+        
         except (TaskAlreadyExistsError, TombstonedTaskError):
             pass # Fan-in magic
+        
         finally:
-            memcache.decr(lock)
+            # release the lock
+            rwlock.releaseWriteLock(index)
             
     def mergeJoinDispatch(self, event, obj):
         """ Performs a merge join on the pending fan-in dispatches.
@@ -605,32 +621,9 @@ class FSMContext(dict):
         # the work package index is stored in the url of the Task/FSMContext
         index = self.get(constants.INDEX_PARAM)
         taskNameBase = self.getTaskName(event, fanIn=True)
+        rwlock = ReadWriteLock(taskNameBase, self)
+        rwlock.acquireReadLock(index)
         
-        # tell writers to use another index
-        memcache.incr('index-' + taskNameBase)
-        
-        lock = '%s-lock-%d' % (taskNameBase, index)
-        memcache.decr(lock, 2**15) # tell writers they missed the boat
-        
-        # 20 iterations * 0.25s = 5s total wait time
-        busyWaitIters = 20
-        busyWaitIterSecs = 0.250
-        
-        # busy wait for writers
-        for i in xrange(busyWaitIters):
-            counter = memcache.get(lock)
-            # counter is None --> ejected from memcache
-            # int(counter) <= 2**15 --> writers have all called memcache.decr
-            if counter is None or int(counter) <= 2**15:
-                break
-            time.sleep(busyWaitIterSecs)
-            self.logger.debug("Tried to acquire lock '%s' %d times...", lock, i + 1)
-        
-        # FIXME: is there anything else that can be done? will work packages be lost? maybe queue another task
-        #        to sweep up later?
-        if i >= (busyWaitIters - 1): # pylint: disable-msg=W0631
-            self.logger.error("Gave up waiting for all fan-in work items.")
-
         # and return the FSMContexts list
         class FSMContextList(list):
             """ A list that supports .logger.info(), .logger.warning() etc.for fan-in actions """
@@ -643,26 +636,20 @@ class FSMContext(dict):
         # the following step ensure that fan-in only ever operates one time over a list of data
         # the entity is created in State.dispatch(...) _after_ all the actions have executed
         # successfully
-        #
-        # FIXME: refactor into a cleaner interface once satisfied with performance
-        #
-        def txn():
-            """ txn """
-            workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
-            idem = _FantasmFanIn.get_by_key_name(workIndex)
-            return idem
-        idem = db.run_in_transaction(txn)
-        if idem:
+        workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
+        semaphore = RunOnceSemaphore(workIndex, self)
+        if semaphore.readRunOnceSemaphore(self.__obj.get(constants.TASK_NAME_PARAM)):
             self.logger.info("Fan-in idempotency guard, not processing any work items.")
-            if idem.taskName != self.__obj.get(constants.TASK_NAME_PARAM):
-                self.logger.critical("Fan-in idempotency guard fatal error - fsm.py.")
             return FSMContextList(self, []) # don't operate over the data again
+        
+        # see comment (A) in self._queueDispatchFanIn(...)
+        time.sleep(constants.DATASTORE_ASYNCRONOUS_INDEX_WRITE_WAIT_TIME)
             
         # fetch all the work packages in the current group for processing
-        workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
         query = _FantasmFanIn.all() \
                              .filter('workIndex =', workIndex) \
                              .order('__key__')
+                             
         # construct a list of FSMContexts
         contexts = [self.clone(data=r.context) for r in query]
         return FSMContextList(self, contexts)
