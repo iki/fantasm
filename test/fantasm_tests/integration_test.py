@@ -3,7 +3,9 @@ import re
 import logging
 
 import random # pylint: disable-msg=W0611
+from fantasm.lock import ReadWriteLock
 from fantasm import config # pylint: disable-msg=W0611
+from fantasm.fsm import FSM
 from fantasm.models import _FantasmFanIn, _FantasmInstance, _FantasmLog
 from fantasm_tests.helpers import runQueuedTasks
 from fantasm_tests.helpers import overrideFails
@@ -670,6 +672,74 @@ class RunTasksTests_DatastoreFSMContinuationFanInTests(RunTasksBaseTest):
         self.assertEqual(10, ResultModel.get_by_key_name(self.context.instanceName).total)
         
 class RunTasksTests_DatastoreFSMContinuationFanInTests_POST(RunTasksTests_DatastoreFSMContinuationFanInTests):
+    METHOD = 'POST'
+    
+class RunTasksTests_DatastoreFSMContinuationFanInTests_memcache_problems(RunTasksBaseTest):
+    
+    FILENAME = 'test-DatastoreFSMContinuationFanInTests.yaml'
+    MACHINE_NAME = 'DatastoreFSMContinuationFanInTests'
+    
+    def setUp(self):
+        super(RunTasksTests_DatastoreFSMContinuationFanInTests_memcache_problems, self).setUp()
+        class BreakReadLock( object ):
+            def execute(self, context, obj):
+                from google.appengine.api import memcache
+                lockKey = 'instanceName--state-continuation--next-event--state-fan-in--step-2-lock-1'
+                memcache.set(lockKey, 2**64)
+        self.context.currentState.getTransition(FSM.PSEUDO_INIT) \
+                    .target.getTransition('next-event') \
+                    .target.exitAction = BreakReadLock()
+        CountExecuteCallsFanIn.CONTEXTS = []
+        ReadWriteLock._BUSY_WAIT_ITER_SECS = ReadWriteLock.BUSY_WAIT_ITERS
+        ReadWriteLock.BUSY_WAIT_ITER_SECS = 0
+        ReadWriteLock._BUSY_WAIT_ITERS = ReadWriteLock.BUSY_WAIT_ITERS
+        ReadWriteLock.BUSY_WAIT_ITERS = 2
+                
+    def tearDown(self):
+        super(RunTasksTests_DatastoreFSMContinuationFanInTests_memcache_problems, self).tearDown()
+        CountExecuteCallsFanIn.CONTEXTS = []
+        ReadWriteLock.BUSY_WAIT_ITER_SECS = ReadWriteLock._BUSY_WAIT_ITER_SECS
+        ReadWriteLock.BUSY_WAIT_ITERS = ReadWriteLock._BUSY_WAIT_ITERS
+        
+    def test_DatastoreFSMContinuationFanInTests(self):
+        # FIXME: this test is non-deterministic based on time.time in _queueDispatchFanIn
+        self.context.initialize() # queues the first task
+        ran = runQueuedTasks(queueName=self.context.queueName)
+        self.assertEqual(['instanceName--pseudo-init--pseudo-init--state-initial--step-0', 
+                          'instanceName--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-1--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-2--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-3--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-4--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-5--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-5--state-continuation--pseudo-final--pseudo-final--step-2', # ???
+                          'instanceName--state-continuation--next-event--state-fan-in--step-2-1',
+                          'instanceName--state-continuation--next-event--state-fan-in--step-2-1',
+                          'instanceName--state-continuation--next-event--state-fan-in--step-2-1',
+                          'instanceName--state-continuation--next-event--state-fan-in--step-2-1',
+                          'instanceName--state-continuation--next-event--state-fan-in--step-2-1',
+                          'instanceName--state-continuation--next-event--state-fan-in--step-2-1',
+                          'instanceName--work-index-1--state-fan-in--next-event--state-final--step-3'], ran)
+        self.assertEqual({'state-initial': {'entry': 1, 'action': 1, 'exit': 0},
+                          'state-continuation': {'entry': 6, 'action': 5, 'continuation': 6, 'exit': 0},
+                          'state-fan-in': {'entry': 1, 'action': 1, 'exit': 0, 
+                                           'fan-in-entry': 5, 'fan-in-action': 5, 'fan-in-exit': 0},
+                          'state-final': {'entry': 1, 'action': 1, 'exit': 0},
+                          'state-initial--next-event': {'action': 0},
+                          'state-continuation--next-event': {'action': 0},
+                          'state-fan-in--next-event': {'action': 0}}, 
+                 getCounts(self.machineConfig))
+        # pylint: disable-msg=C0301
+        self.assertEqual([{u'__ix__': 1, u'__count__': 2, u'__step__': 2, 'fan-me-in': [datastore_types.Key.from_path(u'TestModel', u'2', _app=u'fantasm'), datastore_types.Key.from_path(u'TestModel', u'3', _app=u'fantasm')]}, 
+                          {u'__ix__': 1, u'__count__': 3, u'__step__': 2, 'fan-me-in': [datastore_types.Key.from_path(u'TestModel', u'4', _app=u'fantasm'), datastore_types.Key.from_path(u'TestModel', u'5', _app=u'fantasm')]}, 
+                          {u'__ix__': 1, u'__count__': 4, u'__step__': 2, 'fan-me-in': [datastore_types.Key.from_path(u'TestModel', u'6', _app=u'fantasm'), datastore_types.Key.from_path(u'TestModel', u'7', _app=u'fantasm')]}, 
+                          {u'__ix__': 1, u'__count__': 5, u'__step__': 2, 'fan-me-in': [datastore_types.Key.from_path(u'TestModel', u'8', _app=u'fantasm'), datastore_types.Key.from_path(u'TestModel', u'9', _app=u'fantasm')]}, 
+                          {u'__ix__': 1, u'__count__': 1, u'__step__': 2, 'fan-me-in': [datastore_types.Key.from_path(u'TestModel', u'0', _app=u'fantasm'), datastore_types.Key.from_path(u'TestModel', u'1', _app=u'fantasm')]}], CountExecuteCallsFanIn.CONTEXTS)
+        self.assertEqual(0, _FantasmFanIn.all().count())
+        self.assertEqual(10, ResultModel.get_by_key_name(self.context.instanceName).total)
+        
+class RunTasksTests_DatastoreFSMContinuationFanInTests__memcache_problems_POST(
+                                                    RunTasksTests_DatastoreFSMContinuationFanInTests_memcache_problems):
     METHOD = 'POST'
     
 class RunTasksTests_DatastoreFSMContinuationFanInDiamondTests(RunTasksBaseTest):

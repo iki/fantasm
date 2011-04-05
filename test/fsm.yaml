@@ -122,7 +122,8 @@ state_machines:
     transitions:
       - event: event2
         to: state3
-        task_retry_limit: 3
+        task_retry_limit: 10
+        min_backoff_seconds: 60
 
   - name: state3
     entry: EntryAction3

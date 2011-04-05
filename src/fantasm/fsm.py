@@ -319,8 +319,14 @@ class FSMContext(dict):
         url = self.buildUrl(self.currentState, FSM.PSEUDO_INIT)
         params = self.buildParams(self.currentState, FSM.PSEUDO_INIT)
         taskName = taskName or self.getTaskName(FSM.PSEUDO_INIT)
-        task = Task(name=taskName, method=self.method, url=url, params=params, countdown=countdown, 
-                    headers=self.headers)
+        transition = self.currentState.getTransition(FSM.PSEUDO_INIT)
+        task = Task(name=taskName, 
+                    method=self.method, 
+                    url=url, 
+                    params=params, 
+                    countdown=countdown, 
+                    headers=self.headers, 
+                    retry_options=transition.retryOptions)
         return task
     
     def fork(self, data=None):
@@ -497,6 +503,7 @@ class FSMContext(dict):
         transition = self.currentState.getTransition(nextEvent)
         if transition.target.isFanIn:
             task = self._queueDispatchFanIn(nextEvent, fanInPeriod=transition.target.fanInPeriod,
+                                            retryOptions=transition.retryOptions,
                                             queueName=transition.queueName)
         else:
             task = self._queueDispatchNormal(nextEvent, queue=queue, countdown=transition.countdown,
@@ -529,7 +536,7 @@ class FSMContext(dict):
         
         return task
     
-    def _queueDispatchFanIn(self, nextEvent, fanInPeriod=0, queueName=None):
+    def _queueDispatchFanIn(self, nextEvent, fanInPeriod=0, retryOptions=None, queueName=None):
         """ Queues a call to .dispatch(nextEvent) in the task queue, or saves the context to the 
         datastore for processing by the queued .dispatch(nextEvent)
         
@@ -551,41 +558,62 @@ class FSMContext(dict):
         rwlock = ReadWriteLock(taskNameBase, self)
         index = rwlock.currentIndex()
             
-        try:
-            # grab the lock
-            rwlock.acquireWriteLock(index, nextEvent=nextEvent)
-            
-            # insert the work package, which is simply a serialized FSMContext
-            workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
-            
-            # on retry, we want to ensure we get the same work index for this task
-            # FIXME: however, what if this misses the boat?
-            # FIXME: maybe another fan-in task far in the future?
-            # FIXME: the semaphore and finally block below race a bit, but much better than prior attempts
-            actualTaskName = self.__obj.get(constants.TASK_NAME_PARAM)
-            indexKeyName = 'workIndex-' + '-'.join([str(i) for i in [actualTaskName, fork] if i]) or None
-            semaphore = RunOnceSemaphore(indexKeyName, self)
-            
-            # check if the workIndex changed during retry
-            if self.__obj.get(constants.RETRY_COUNT_PARAM) > 0:
-                payload = semaphore.readRunOnceSemaphore(payload=workIndex, transactional=False)
-                if payload and payload != workIndex:
+        # (***)
+        #
+        # grab the lock - memcache.incr()
+        # 
+        # on Task retry, multiple incr() calls are possible. possible ways to handle:
+        #
+        # 1. release the lock in a 'finally' clause, but then risk missing a work
+        #    package because acquiring the read lock will succeed even though the
+        #    work package was not written yet.
+        #
+        # 2. allow the lock to get too high. the fan-in logic attempts to wait for 
+        #    work packages across multiple-retry attempts, so this seems like the 
+        #    best option. we basically trade a bit of latency in fan-in for reliability.
+        #    
+        rwlock.acquireWriteLock(index, nextEvent=nextEvent)
+        
+        # insert the work package, which is simply a serialized FSMContext
+        workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
+        
+        # on retry, we want to ensure we get the same work index for this task
+        actualTaskName = self.__obj.get(constants.TASK_NAME_PARAM)
+        indexKeyName = 'workIndex-' + '-'.join([str(i) for i in [actualTaskName, fork] if i]) or None
+        semaphore = RunOnceSemaphore(indexKeyName, self)
+        
+        # check if the workIndex changed during retry
+        semaphoreWritten = False
+        if self.__obj.get(constants.RETRY_COUNT_PARAM) > 0:
+            # see comment (A) in self._queueDispatchFanIn(...)
+            time.sleep(constants.DATASTORE_ASYNCRONOUS_INDEX_WRITE_WAIT_TIME)
+            payload = semaphore.readRunOnceSemaphore(payload=workIndex, transactional=False)
+            if payload:
+                semaphoreWritten = True
+                if payload != workIndex:
+                    self.logger.info("Work index changed on retry.")
                     workIndex = payload
-                    
-            # write down two models, one actual work package, one idempotency package
-            keyName = '-'.join([str(i) for i in [actualTaskName, fork] if i]) or None
-            work = _FantasmFanIn(context=self, workIndex=workIndex, key_name=keyName)
-            
-            # close enough to idempotent, but could still write only one of the entities
-            # FIXME: could be made faster using a bulk put, but this interface is cleaner
+                
+        # write down two models, one actual work package, one idempotency package
+        keyName = '-'.join([str(i) for i in [actualTaskName, fork] if i]) or None
+        work = _FantasmFanIn(context=self, workIndex=workIndex, key_name=keyName)
+        
+        # close enough to idempotent, but could still write only one of the entities
+        # FIXME: could be made faster using a bulk put, but this interface is cleaner
+        if not semaphoreWritten:
             semaphore.writeRunOnceSemaphore(payload=workIndex, transactional=False)
+        
+        # put the work item
+        db.put(work)
+        
+        # (A) now the datastore is asynchronously writing the indices, so the work package may
+        #     not show up in a query for a period of time. there is a corresponding time.sleep()
+        #     in the fan-in of self.mergeJoinDispatch(...) 
             
-            # put the work item
-            db.put(work)
+        # release the lock - memcache.decr()
+        rwlock.releaseWriteLock(index)
             
-            # (A) now the datastore is asynchronously writing the indices, so the work package may
-            #     not show up in a query for a period of time. there is a corresponding time.sleep()
-            #     in the fan-in of self.mergeJoinDispatch(...) 
+        try:
             
             # insert a task to run in the future and process a bunch of work packages
             now = time.time()
@@ -597,16 +625,14 @@ class FSMContext(dict):
                         url=url,
                         params=params,
                         eta=datetime.datetime.utcfromtimestamp(now) + datetime.timedelta(seconds=fanInPeriod),
-                        headers=self.headers)
+                        headers=self.headers,
+                        retry_options=retryOptions)
             self.Queue(name=queueName).add(task)
             return task
         
         except (TaskAlreadyExistsError, TombstonedTaskError):
             pass # Fan-in magic
-        
-        finally:
-            # release the lock
-            rwlock.releaseWriteLock(index)
+                
             
     def mergeJoinDispatch(self, event, obj):
         """ Performs a merge join on the pending fan-in dispatches.
@@ -621,8 +647,17 @@ class FSMContext(dict):
         # the work package index is stored in the url of the Task/FSMContext
         index = self.get(constants.INDEX_PARAM)
         taskNameBase = self.getTaskName(event, fanIn=True)
+        
+        # see comment (***) in self._queueDispatchFanIn 
+        # 
+        # in the case of failing to acquire a read lock (due to failed release of write lock)
+        # we have decided to keep retrying
+        raiseOnFail = False
+        if self._getTaskRetryLimit() is not None:
+            raiseOnFail = (self._getTaskRetryLimit() > self.__obj[constants.RETRY_COUNT_PARAM])
+            
         rwlock = ReadWriteLock(taskNameBase, self)
-        rwlock.acquireReadLock(index)
+        rwlock.acquireReadLock(index, raiseOnFail=raiseOnFail)
         
         # and return the FSMContexts list
         class FSMContextList(list):
@@ -633,17 +668,17 @@ class FSMContext(dict):
                 self.logger = Logger(context)
                 self.instanceName = context.instanceName
                 
+        # see comment (A) in self._queueDispatchFanIn(...)
+        time.sleep(constants.DATASTORE_ASYNCRONOUS_INDEX_WRITE_WAIT_TIME)
+                
         # the following step ensure that fan-in only ever operates one time over a list of data
         # the entity is created in State.dispatch(...) _after_ all the actions have executed
         # successfully
         workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
         semaphore = RunOnceSemaphore(workIndex, self)
-        if semaphore.readRunOnceSemaphore(self.__obj.get(constants.TASK_NAME_PARAM)):
+        if semaphore.readRunOnceSemaphore(payload=self.__obj.get(constants.TASK_NAME_PARAM)):
             self.logger.info("Fan-in idempotency guard, not processing any work items.")
             return FSMContextList(self, []) # don't operate over the data again
-        
-        # see comment (A) in self._queueDispatchFanIn(...)
-        time.sleep(constants.DATASTORE_ASYNCRONOUS_INDEX_WRITE_WAIT_TIME)
             
         # fetch all the work packages in the current group for processing
         query = _FantasmFanIn.all() \

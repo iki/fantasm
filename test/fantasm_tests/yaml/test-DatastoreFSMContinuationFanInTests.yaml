@@ -20,6 +20,7 @@ state_machines:
       transitions:
         - event: next-event
           to: state-fan-in
+          task_retry_limit: 5 # not obvious this control fan-in
       
     - name: state-fan-in
       entry: CountExecuteCallsFanInEntry

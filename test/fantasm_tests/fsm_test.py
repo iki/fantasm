@@ -19,7 +19,7 @@ from fantasm.state import State
 from fantasm.models import _FantasmFanIn
 from fantasm.constants import STATE_PARAM, EVENT_PARAM, INSTANCE_NAME_PARAM, STEPS_PARAM, MACHINE_STATES_ATTRIBUTE, \
                               CONTINUATION_PARAM, INDEX_PARAM, GEN_PARAM, FORKED_CONTEXTS_PARAM, \
-                              FORK_PARAM, TASK_NAME_PARAM
+                              FORK_PARAM, TASK_NAME_PARAM, RETRY_COUNT_PARAM
 from fantasm_tests.fixtures import AppEngineTestCase
 from fantasm_tests.actions import RaiseExceptionAction, RaiseExceptionContinuationAction
 from fantasm_tests.helpers import TaskQueueDouble, getLoggingDouble
@@ -179,6 +179,9 @@ class FSMContextMergeJoinTests(AppEngineTestCase):
                                   instanceName='instanceName',
                                   queueName='qq',
                                   obj={TASK_NAME_PARAM: 'taskName'})
+        self.context.startingState = self.state
+        from google.appengine.api.taskqueue.taskqueue import TaskRetryOptions
+        self.context.retryOptions = TaskRetryOptions()
         self.context[INDEX_PARAM] = 1
         self.context[STEPS_PARAM] = 0
         
@@ -613,24 +616,29 @@ class DatastoreFSMContinuationFanInTests(DatastoreFSMContinuationBaseTests):
         self.assertTrue(FSM.PSEUDO_INIT, self.context.currentState.name)
         self.assertFalse(self.context.currentState.isContinuation)
         
-        event = self.context.dispatch(event, TemporaryStateObject())
+        obj = TemporaryStateObject()
+        obj[TASK_NAME_PARAM] = 'taskName'
+        obj[RETRY_COUNT_PARAM] = 0
+        
+        event = self.context.dispatch(event, obj)
         self.assertEqual('state-initial', self.context.currentState.name)
         self.assertEqual(0, _FantasmFanIn.all().count())
         
-        event = self.context.dispatch(event, TemporaryStateObject())
+        event = self.context.dispatch(event, obj)
         self.assertEqual('state-continuation', self.context.currentState.name)
         self.assertEqual(1, _FantasmFanIn.all().count())
         
-        event = self.context.dispatch(event, TemporaryStateObject())
+        event = self.context.dispatch(event, obj)
         self.assertEqual('state-fan-in', self.context.currentState.name)
         self.assertEqual(1, _FantasmFanIn.all().count())
         
-        event = self.context.dispatch(event, TemporaryStateObject())
+        event = self.context.dispatch(event, obj)
         self.assertEqual('state-final', self.context.currentState.name)
         self.assertEqual(1, _FantasmFanIn.all().count())
         
     def test_DatastoreFSMContinuationFanInTests_write_lock_error(self):
         obj = TemporaryStateObject()
+        obj[TASK_NAME_PARAM] = 'taskName'
         
         event = self.context.initialize() # queues the first task
         self.assertEqual('pseudo-init', self.context.currentState.name)
@@ -671,15 +679,19 @@ class DatastoreFSMContinuationFanInTests(DatastoreFSMContinuationBaseTests):
         
     def test_DatastoreFSMContinuationFanIn_work_packages_restored_on_exception(self):
         
+        obj = TemporaryStateObject()
+        obj[TASK_NAME_PARAM] = 'taskName'
+        obj[RETRY_COUNT_PARAM] = 0
+        
         event = self.context.initialize()
         self.assertTrue(FSM.PSEUDO_INIT, self.context.currentState.name)
         self.assertFalse(self.context.currentState.isContinuation)
         
-        event = self.context.dispatch(event, TemporaryStateObject())
+        event = self.context.dispatch(event, obj)
         self.assertEqual('state-initial', self.context.currentState.name)
         self.assertEqual(0, _FantasmFanIn.all().count())
         
-        event = self.context.dispatch(event, TemporaryStateObject())
+        event = self.context.dispatch(event, obj)
         self.assertEqual('state-continuation', self.context.currentState.name)
         self.assertEqual(1, _FantasmFanIn.all().count())
         
@@ -687,17 +699,17 @@ class DatastoreFSMContinuationFanInTests(DatastoreFSMContinuationBaseTests):
         originalAction = self.context.currentState.getTransition(event).action
         try:
             self.context.currentState.getTransition(event).action = RaiseExceptionAction()
-            self.assertRaises(Exception, self.context.dispatch, event, TemporaryStateObject())
+            self.assertRaises(Exception, self.context.dispatch, event, obj)
             self.assertEqual('state-continuation', self.context.currentState.name)
             self.assertEqual(1, _FantasmFanIn.all().count()) # the work packages are restored on exception
         finally:
             self.context.currentState.getTransition(event).action = originalAction # and restore
         
-        event = self.context.dispatch(event, TemporaryStateObject())
+        event = self.context.dispatch(event, obj)
         self.assertEqual('state-fan-in', self.context.currentState.name)
         self.assertEqual(1, _FantasmFanIn.all().count())
         
-        event = self.context.dispatch(event, TemporaryStateObject())
+        event = self.context.dispatch(event, obj)
         self.assertEqual('state-final', self.context.currentState.name)
         self.assertEqual(1, _FantasmFanIn.all().count())
 

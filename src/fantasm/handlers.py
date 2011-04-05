@@ -188,7 +188,7 @@ class FSMHandler(webapp.RequestHandler):
         if taskName:
             semaphoreKey = '%s--%s' % (taskName, retryCount)
             semaphore = RunOnceSemaphore(semaphoreKey, None)
-            if not semaphore.writeRunOnceSemaphore()[0]:
+            if not semaphore.writeRunOnceSemaphore(payload='fantasm')[0]:
                 # we can simply return here, this is a duplicate fired task
                 logging.info('A duplicate task "%s" has been queued by taskqueue infrastructure. Ignoring.', taskName)
                 self.response.status_code = 200

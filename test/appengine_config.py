@@ -1,4 +1,7 @@
-""" Installs mock middleware """
+""" Installs mock middleware - simulates a TERRIBLE App Engine environment
+
+FIXME: work in progress, currently disabled
+"""
 
 import random
 import google.appengine.ext.db

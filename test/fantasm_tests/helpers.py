@@ -260,7 +260,7 @@ def setUpByFilename(obj, filename, machineName=None, instanceName=None, taskRetr
     obj.context = obj.factory.createFSMInstance(obj.machineConfig.name, instanceName=instanceName, method=method)
     obj.initialState = obj.context.initialState
     
-def setUpByString(obj, yaml, machineName=None):
+def setUpByString(obj, yaml, machineName=None, instanceName=None):
     """ Configures obj (a unittest.TestCase instance) with obj.context 
     
     @param obj: a unittest.TestCase instance
@@ -269,7 +269,7 @@ def setUpByString(obj, yaml, machineName=None):
     f = tempfile.NamedTemporaryFile()
     f.write(yaml)
     f.flush()
-    setUpByFilename(obj, f.name, machineName=machineName)
+    setUpByFilename(obj, f.name, machineName=machineName, instanceName=instanceName)
     f.close()
 
 class ZeroCountMock(object):

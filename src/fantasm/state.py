@@ -169,7 +169,7 @@ class State(object):
             index = context.get(constants.INDEX_PARAM)
             workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
             semaphore = RunOnceSemaphore(workIndex, context)
-            semaphore.writeRunOnceSemaphore(obj.get(constants.TASK_NAME_PARAM))
+            semaphore.writeRunOnceSemaphore(payload=obj.get(constants.TASK_NAME_PARAM))
             
             try:
                 # at this point we have processed the work items, delete them
