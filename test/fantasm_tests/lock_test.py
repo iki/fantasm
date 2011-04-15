@@ -108,10 +108,10 @@ class ReadWriteLockTest(AppEngineTestCase):
         self.assertEqual('65537', memcache.get(lock.lockKey(index)))
         lock.acquireReadLock(index)
         self.assertEqual('32769', memcache.get(lock.lockKey(index)))
-        self.assertEqual(["Tried to acquire lock 'foo-lock-3626764237' 1 times...",
-                          "Tried to acquire lock 'foo-lock-3626764237' 2 times..."], 
+        self.assertEqual(["Tried to acquire read lock 'foo-lock-3626764237' 1 times...",
+                          "Tried to acquire read lock 'foo-lock-3626764237' 2 times..."], 
                           self.loggingDouble.messages['debug'])
-        self.assertEqual(["Gave up waiting for all fan-in work items."], 
+        self.assertEqual(["Gave up waiting for all fan-in work items with read lock 'foo-lock-3626764237'."], 
                          self.loggingDouble.messages['critical'])
         
     def test_acquireReadLock(self):
@@ -138,9 +138,9 @@ class ReadWriteLockTest(AppEngineTestCase):
         mock('time.sleep', returns_func=sleepAndRelease, tracker=None)
         lock.acquireReadLock(index)
         self.assertEqual('32768', memcache.get(lock.lockKey(index)))
-        self.assertEqual(["Tried to acquire lock 'foo-lock-3626764237' 1 times..."], 
+        self.assertEqual(["Tried to acquire read lock 'foo-lock-3626764237' 1 times..."], 
                          self.loggingDouble.messages['debug'])
-        self.assertEqual(["Gave up waiting for all fan-in work items."], 
+        self.assertEqual(["Gave up waiting for all fan-in work items with read lock 'foo-lock-3626764237'."], 
                          self.loggingDouble.messages['critical'])
 
 class RunOnceSemaphoreTest(AppEngineTestCase):

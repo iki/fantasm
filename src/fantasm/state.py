@@ -169,17 +169,20 @@ class State(object):
             index = context.get(constants.INDEX_PARAM)
             workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
             semaphore = RunOnceSemaphore(workIndex, context)
-            semaphore.writeRunOnceSemaphore(payload=obj.get(constants.TASK_NAME_PARAM))
+            semaphore.writeRunOnceSemaphore(payload=obj[constants.TASK_NAME_PARAM])
             
             try:
                 # at this point we have processed the work items, delete them
-                task = Task(name=obj.get(constants.TASK_NAME_PARAM, '') + '-cleanup', 
+                task = Task(name=obj[constants.TASK_NAME_PARAM] + '-cleanup', 
                             url=constants.DEFAULT_CLEANUP_URL, 
-                            params={'workIndex': workIndex})
+                            params={constants.WORK_INDEX_PARAM: workIndex})
                 context.Queue(name=constants.DEFAULT_CLEANUP_QUEUE_NAME).add(task)
                 
             except (TaskAlreadyExistsError, TombstonedTaskError):
                 context.logger.info("Fan-in cleanup Task already exists.")
+                
+            if context.get('UNITTEST_RAISE_AFTER_FAN_IN'): # only way to generate this failure
+                raise Exception()
                 
         if nextEvent:
             if not isinstance(nextEvent, str) or not constants.NAME_RE.match(nextEvent):

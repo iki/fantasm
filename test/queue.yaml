@@ -10,6 +10,10 @@ queue:
   rate: 100/s
   bucket_size: 100
   
+- name: fan-in
+  rate: 100/s
+  bucket_size: 100
+  
 - name: log
   rate: 100/s
   bucket_size: 100

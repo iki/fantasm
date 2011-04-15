@@ -578,20 +578,20 @@ class FSMContext(dict):
         workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
         
         # on retry, we want to ensure we get the same work index for this task
-        actualTaskName = self.__obj.get(constants.TASK_NAME_PARAM)
+        actualTaskName = self.__obj[constants.TASK_NAME_PARAM]
         indexKeyName = 'workIndex-' + '-'.join([str(i) for i in [actualTaskName, fork] if i]) or None
         semaphore = RunOnceSemaphore(indexKeyName, self)
         
         # check if the workIndex changed during retry
         semaphoreWritten = False
-        if self.__obj.get(constants.RETRY_COUNT_PARAM) > 0:
+        if self.__obj[constants.RETRY_COUNT_PARAM] > 0:
             # see comment (A) in self._queueDispatchFanIn(...)
             time.sleep(constants.DATASTORE_ASYNCRONOUS_INDEX_WRITE_WAIT_TIME)
             payload = semaphore.readRunOnceSemaphore(payload=workIndex, transactional=False)
             if payload:
                 semaphoreWritten = True
                 if payload != workIndex:
-                    self.logger.info("Work index changed on retry.")
+                    self.logger.info("Work index changed from '%s' to '%s' on retry.", payload, workIndex)
                     workIndex = payload
                 
         # write down two models, one actual work package, one idempotency package
@@ -675,10 +675,12 @@ class FSMContext(dict):
         # the entity is created in State.dispatch(...) _after_ all the actions have executed
         # successfully
         workIndex = '%s-%d' % (taskNameBase, knuthHash(index))
-        semaphore = RunOnceSemaphore(workIndex, self)
-        if semaphore.readRunOnceSemaphore(payload=self.__obj.get(constants.TASK_NAME_PARAM)):
-            self.logger.info("Fan-in idempotency guard, not processing any work items.")
-            return FSMContextList(self, []) # don't operate over the data again
+        if obj[constants.RETRY_COUNT_PARAM] > 0:
+            semaphore = RunOnceSemaphore(workIndex, self)
+            if semaphore.readRunOnceSemaphore(payload=self.__obj[constants.TASK_NAME_PARAM]):
+                self.logger.info("Fan-in idempotency guard for workIndex '%s', not processing any work items.", 
+                                 workIndex)
+                return FSMContextList(self, []) # don't operate over the data again
             
         # fetch all the work packages in the current group for processing
         query = _FantasmFanIn.all() \

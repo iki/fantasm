@@ -87,6 +87,7 @@ class ReadWriteLock( object ):
         lockKey = self.lockKey(index)
         writers = memcache.incr(lockKey, initial_value=2**16)
         if writers < 2**16:
+            self.context.logger.error("Gave up waiting for write lock '%s'.", lockKey)
             acquired = False
             if raiseOnFail:
                 # this will escape as a 500 error and the Task will be re-tried by appengine
@@ -132,12 +133,12 @@ class ReadWriteLock( object ):
             if counter is None or int(counter) <= 2**15:
                 break
             time.sleep(ReadWriteLock.BUSY_WAIT_ITER_SECS)
-            self.context.logger.debug("Tried to acquire lock '%s' %d times...", lockKey, i + 1)
+            self.context.logger.debug("Tried to acquire read lock '%s' %d times...", lockKey, i + 1)
         
         # FIXME: is there anything else that can be done? will work packages be lost? maybe queue another task
         #        to sweep up later?
         if i >= (ReadWriteLock.BUSY_WAIT_ITERS - 1): # pylint: disable-msg=W0631
-            self.context.logger.critical("Gave up waiting for all fan-in work items.")
+            self.context.logger.critical("Gave up waiting for all fan-in work items with read lock '%s'.", lockKey)
             acquired = False
             if raiseOnFail:
                 raise FanInReadLockFailureRuntimeError(nextEvent, 

@@ -28,7 +28,8 @@ from google.appengine.api.taskqueue import taskqueue
 
 LOG_ERROR_MESSAGE = 'Exception constructing log message. Please adjust your usage of context.logger.'
 
-def _log(instanceName, 
+def _log(taskName, 
+         instanceName, 
          machineName, stateName, actionName, transitionName,
          level, namespace, tags, message, stack, time, 
          *args, **kwargs): # pylint: disable-msg=W0613
@@ -59,7 +60,8 @@ def _log(instanceName,
     except TypeError: # TypeError: not enough arguments for format string
         pass
     
-    _FantasmLog(instanceName=instanceName, 
+    _FantasmLog(taskName=taskName,
+                instanceName=instanceName, 
                 machineName=machineName,
                 stateName=stateName,
                 actionName=actionName,
@@ -140,6 +142,8 @@ class Logger( object ):
                     args = []
                 logging.warning(message, exc_info=True)
                 
+        taskName = (self.__obj or {}).get(constants.TASK_NAME_PARAM)
+                
         stateName = None
         if self.context.currentState:
             stateName = self.context.currentState.name
@@ -162,6 +166,7 @@ class Logger( object ):
                     self.__obj[constants.MESSAGES_PARAM].append(message)
                 
         serialized = deferred.serialize(_log,
+                                        taskName,
                                         self.context.instanceName,
                                         self.context.machineName,
                                         stateName,

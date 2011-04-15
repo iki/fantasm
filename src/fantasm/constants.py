@@ -42,6 +42,7 @@ STEPS_PARAM = '__step__' # tracks the number of steps executed in the machine so
 CONTINUATION_PARAM = '__ct__' # tracks the continuation token (for continuation states)
 GEN_PARAM = '__ge__' # used to uniquify the machine instance names (for continuations and spawns)
 INDEX_PARAM = '__ix__'
+WORK_INDEX_PARAM = '__wix__'
 FORK_PARAM = '__fk__'
 STARTED_AT_PARAM = '__sa__'
 

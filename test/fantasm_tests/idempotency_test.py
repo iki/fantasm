@@ -83,19 +83,18 @@ class ContinuationAction( DatastoreContinuationFSMAction ):
             return 'ok'
         
 class FanInAction( object ):
-    CALLS = 0
     def execute(self, contexts, obj):
         keys = []
         for ctx in contexts:
             keys.extend(ctx.get('keys', []))
         def txn():
-            FanInAction.CALLS += 1
+            calls = memcache.incr('calls')
             result = ResultModel.get_by_key_name('test')
             if not result:
                 result = ResultModel(key_name='test', total=0)
             result.total += len(keys)
             result.put()
-            if FanInAction.CALLS % 2:
+            if memcache.get('raise') and (calls % 2):
                 raise db.Error()
         if keys:
             db.run_in_transaction(txn)
@@ -139,12 +138,12 @@ class FanInTxnException( AppEngineTestCase ):
         mock('config.currentConfiguration', returns=self.currentConfig, tracker=None)
         for i in range(20):
             SimpleModel(key_name='%d' % i).put()
-        FanInAction.CALLS = 0
+        memcache.set('calls', 0)
+        memcache.set('raise', True)
         
     def tearDown(self):
         super(FanInTxnException, self).tearDown()
         restore()
-        FanInAction.CALLS = 0
     
     def test(self):
         self.context.initialize() # queues the first task
@@ -153,17 +152,64 @@ class FanInTxnException( AppEngineTestCase ):
         result = ResultModel.get_by_key_name('test')
         self.assertEqual(20, result.total)
         
-        
-class FanInDispatch( AppEngineTestCase ):
+class FanInMergeJoinDispatchTest( AppEngineTestCase ):
     
     def setUp(self):
-        super(FanInDispatch, self).setUp()
+        super(FanInMergeJoinDispatchTest, self).setUp()
+        setUpByString(self, FAN_IN_MACHINE, machineName='FanInMachine', instanceName='foo')
+        mock('config.currentConfiguration', returns=self.currentConfig, tracker=None)
+        for i in range(20):
+            SimpleModel(key_name='%d' % i).put()
+        memcache.set('calls', 0)
+        memcache.set('raise', False)
+        
+        context = self.factory.createFSMInstance(self.machineConfig.name, instanceName='foo')
+        context[constants.STEPS_PARAM] = 1
+        obj = TemporaryStateObject()
+        obj[constants.TASK_NAME_PARAM] = 'taskName'
+        obj[constants.RETRY_COUNT_PARAM] = 0
+        
+        random.seed(0)
+        context.dispatch('pseudo-init', obj) # write down a work package
+        self.index = context[constants.INDEX_PARAM]
+        
+        self.assertEqual(1, _FantasmFanIn.all().count())
+        self.assertEqual('foo--InitialState--ok--FanInState--step-2-2957927341', 
+                         _FantasmFanIn.all().get().workIndex)
+        
+    def setUpContext(self, retryCount=0):
+        self.context = self.factory.createFSMInstance(self.machineConfig.name, instanceName='foo',
+                                                      currentStateName='InitialState')
+        self.context[constants.STEPS_PARAM] = 2
+        self.context[constants.INDEX_PARAM] = self.index
+        self.obj = TemporaryStateObject()
+        self.obj[constants.TASK_NAME_PARAM] = 'taskName'
+        self.obj[constants.RETRY_COUNT_PARAM] = retryCount
+        
+    def tearDown(self):
+        restore()
+        super(FanInMergeJoinDispatchTest, self).tearDown()
+        
+    def test_run_twice(self):
+        self.setUpContext()
+        self.context.dispatch('ok', self.obj)
+        self.assertEqual(1, ResultModel.get_by_key_name('test').total)
+        self.assertEqual(2, _FantasmTaskSemaphore.all().count())
+        
+        self.setUpContext(retryCount=1) # assumes retry count is set correctly
+        self.context.dispatch('ok', self.obj)  
+        self.assertEqual(1, ResultModel.get_by_key_name('test').total)
+        self.assertEqual(2, _FantasmTaskSemaphore.all().count())
+        
+class FanInQueueDispatchTest( AppEngineTestCase ):
+    
+    def setUp(self):
+        super(FanInQueueDispatchTest, self).setUp()
         setUpByString(self, FAN_IN_MACHINE, machineName='FanInMachine', instanceName='foo')
         mock('config.currentConfiguration', returns=self.currentConfig, tracker=None)
         for i in range(20):
             SimpleModel(key_name='%d' % i).put()
         FanInAction.CALLS = 0
-        self.setUpContext()
         
     def setUpContext(self, retryCount=0):
         self.context = self.factory.createFSMInstance(self.machineConfig.name, instanceName='foo')
@@ -175,7 +221,7 @@ class FanInDispatch( AppEngineTestCase ):
         
     def tearDown(self):
         restore()
-        super(FanInDispatch, self).tearDown()
+        super(FanInQueueDispatchTest, self).tearDown()
         
     def test_run_twice(self):
         self.setUpContext()

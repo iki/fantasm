@@ -90,7 +90,7 @@ class FSMFanInCleanupHandler(webapp.RequestHandler):
     """ The handler used for logging """
     def post(self):
         """ Runs the serialized function """
-        q = _FantasmFanIn.all().filter('workIndex =', self.request.POST['workIndex'])
+        q = _FantasmFanIn.all().filter('workIndex =', self.request.POST[constants.WORK_INDEX_PARAM])
         db.delete(q)
 
 class FSMGraphvizHandler(webapp.RequestHandler):

@@ -188,7 +188,7 @@ class FSMContextMergeJoinTests(AppEngineTestCase):
     def test_mergeJoinDispatch_1_context(self):
         _FantasmFanIn(workIndex='instanceName--foo--event--foo2--step-0-2654435761').put()
         self.assertEqual(1, _FantasmFanIn.all().count())
-        contexts = self.context.mergeJoinDispatch('event', {})
+        contexts = self.context.mergeJoinDispatch('event', {RETRY_COUNT_PARAM: 0})
         self.assertEqual([{'__ix__': 1, '__step__': 0}], contexts)
         self.assertEqual(1, _FantasmFanIn.all().count())
         
@@ -196,7 +196,7 @@ class FSMContextMergeJoinTests(AppEngineTestCase):
         for i in xrange(1234):
             _FantasmFanIn(workIndex='instanceName--foo--event--foo2--step-0-2654435761').put()
         self.assertEqual(1000, _FantasmFanIn.all().count()) # can't get them all with .count()
-        contexts = self.context.mergeJoinDispatch('event', {})
+        contexts = self.context.mergeJoinDispatch('event', {RETRY_COUNT_PARAM: 0})
         self.assertEqual(1234, len(contexts))
         self.assertEqual(1000, _FantasmFanIn.all().count())
         
