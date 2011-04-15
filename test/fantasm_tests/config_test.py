@@ -796,6 +796,126 @@ class TestYamlFileLocation(unittest.TestCase):
         configuration = config.loadYaml(filename=filename)
         self.assertTrue('MyMachine' in configuration.machines)
         
+NAMESPACED_EVENT_MODULE_LEVEL = 'NAMESPACED-EVENT-MODULE-LEVEL'
+        
+class TestNamespacedEvents(unittest.TestCase):
+    
+    NAMESPACED_EVENT_CLASS_LEVEL = 'NAMESPACED-EVENT-CLASS-LEVEL'
+    
+    def _test(self, yamlString):
+        """ just tests that it can be built """
+        import StringIO, yaml
+        yamlFile = StringIO.StringIO()
+        yamlFile.write(yamlString)
+        yamlFile.seek(0)
+        configDict = yaml.load(yamlFile.read())
+        self.configuration = config.Configuration(configDict)
+        
+    def test_module_level(self):
+        self._test(
+"""
+state_machines:
+- name: machineName
+  namespace: fantasm_tests.config_test
+  states:
+    - name: state1
+      action: fantasm_tests.fsm_test.CountExecuteCalls
+      initial: True
+      transitions:
+      - event: NAMESPACED_EVENT_MODULE_LEVEL
+        to: state2
+    - name: state2
+      final: True
+""")
+        self.assertEqual(
+            'NAMESPACED-EVENT-MODULE-LEVEL', 
+            self.configuration.machines['machineName'].transitions['state1--NAMESPACED-EVENT-MODULE-LEVEL'].event
+        )
+        
+    def test_module_level_other(self):
+        self._test(
+"""
+state_machines:
+- name: machineName
+  namespace: fantasm_tests.config_test
+  states:
+    - name: state1
+      action: fantasm_tests.fsm_test.CountExecuteCalls
+      initial: True
+      transitions:
+      - event: fantasm_tests.fsm_test.NAMESPACED_EVENT_MODULE_LEVEL_FSM_TESTS
+        to: state2
+    - name: state2
+      final: True
+""")
+        self.assertEqual(
+            'NAMESPACED-EVENT-MODULE-LEVEL-FSM-TESTS', 
+            self.configuration.machines['machineName'].transitions['state1--NAMESPACED-EVENT-MODULE-LEVEL-FSM-TESTS'].event
+        )
+        
+    def test_class_level(self):
+        self._test(
+"""
+state_machines:
+- name: machineName
+  namespace: fantasm_tests.config_test
+  states:
+    - name: state1
+      action: fantasm_tests.fsm_test.CountExecuteCalls
+      initial: True
+      transitions:
+      - event: TestNamespacedEvents.NAMESPACED_EVENT_CLASS_LEVEL
+        to: state2
+    - name: state2
+      final: True
+""")
+        self.assertEqual(
+            'NAMESPACED-EVENT-CLASS-LEVEL', 
+            self.configuration.machines['machineName'].transitions['state1--NAMESPACED-EVENT-CLASS-LEVEL'].event
+        )
+        
+    def test_class_level_other(self):
+        self._test(
+"""
+state_machines:
+- name: machineName
+  namespace: fantasm_tests.config_test
+  states:
+    - name: state1
+      action: fantasm_tests.fsm_test.CountExecuteCalls
+      initial: True
+      transitions:
+      - event: fantasm_tests.fsm_test.FSMTests.NAMESPACED_EVENT_CLASS_LEVEL_FSM_TESTS
+        to: state2
+    - name: state2
+      final: True
+""")
+        self.assertEqual(
+            'NAMESPACED-EVENT-CLASS-LEVEL-FSM-TESTS', 
+            self.configuration.machines['machineName'].transitions['state1--NAMESPACED-EVENT-CLASS-LEVEL-FSM-TESTS'].event
+        )
+        
+    def test_just_a_plain_old_string(self):
+        self._test(
+"""
+state_machines:
+- name: machineName
+  namespace: fantasm_tests.config_test
+  states:
+    - name: state1
+      action: fantasm_tests.fsm_test.CountExecuteCalls
+      initial: True
+      transitions:
+      - event: just-a-plain-old-string
+        to: state2
+    - name: state2
+      final: True
+""")
+        self.assertEqual(
+            'just-a-plain-old-string', 
+            self.configuration.machines['machineName'].transitions['state1--just-a-plain-old-string'].event
+        )
+        
 class TestStatesWithAndWithoutDoActions(unittest.TestCase):
     
     def _test(self, yamlString):

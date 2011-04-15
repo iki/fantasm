@@ -38,7 +38,11 @@ from minimock import mock, restore, mocked
 # - unit tests need access to protected members
 # - lots of unused args in unit tests
 
+NAMESPACED_EVENT_MODULE_LEVEL_FSM_TESTS = 'NAMESPACED-EVENT-MODULE-LEVEL-FSM-TESTS'
+
 class FSMTests(unittest.TestCase):
+    
+    NAMESPACED_EVENT_CLASS_LEVEL_FSM_TESTS = 'NAMESPACED-EVENT-CLASS-LEVEL-FSM-TESTS'
     
     def test(self):
         machineName = 'foo'

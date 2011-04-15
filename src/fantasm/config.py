@@ -209,6 +209,31 @@ def _resolveClass(className, namespace):
         return resolvedClass
     except AttributeError:
         raise exceptions.UnknownClassError(moduleName, className)
+    
+def _resolveObject(objectName, namespace):
+    """ Given a string name/path of a object, locates and returns the value of the object. 
+    
+    @param objectName: ie. MODULE_LEVEL_CONSTANT, ActionName.CLASS_LEVEL_CONSTANT
+    @param namespace: ie. fully.qualified.python.module 
+    """
+    
+    if '.' in objectName:
+        classOrObjectName = objectName[:objectName.rfind('.')]
+        objectName = objectName[objectName.rfind('.')+1:]
+    else:
+        classOrObjectName = objectName
+        
+    resolvedClassOrObject = _resolveClass(classOrObjectName, namespace)
+    
+    if isinstance(resolvedClassOrObject, str):
+        return resolvedClassOrObject
+    
+    try:
+        resolvedObject = getattr(resolvedClassOrObject, objectName)
+        return resolvedObject
+    except AttributeError:
+        raise exceptions.UnknownObjectError(classOrObjectName, objectName)
+        
         
 class _MachineConfig(object):
     """ Configuration of a machine. """
@@ -424,9 +449,15 @@ class _TransitionConfig(object):
             raise exceptions.InvalidTransitionAttributeError(self.machineName, fromStateName, badAttributes)
 
         # transition event
-        self.event = transDict.get(constants.TRANS_EVENT_ATTRIBUTE)
-        if not self.event:
+        event = transDict.get(constants.TRANS_EVENT_ATTRIBUTE)
+        if not event:
             raise exceptions.TransitionEventRequiredError(machine.name, fromStateName)
+        try:
+            # attempt to import the value of the event
+            self.event = _resolveObject(event, machine.namespace)
+        except (exceptions.UnknownModuleError, exceptions.UnknownClassError, exceptions.UnknownObjectError):
+            # otherwise just use the value from the yaml
+            self.event = event
         if not constants.NAME_RE.match(self.event):
             raise exceptions.InvalidTransitionEventNameError(self.machineName, fromStateName, self.event)
             

@@ -207,6 +207,13 @@ class UnknownClassError(ConfigurationError):
         message = 'Class "%s" was not found in module "%s".' % (className, moduleName)
         super(UnknownClassError, self).__init__(message)
         
+class UnknownObjectError(ConfigurationError):
+    """ When resolving actions, the object was not found. """
+    def __init__(self, moduleName, objectName):
+        """ Initialize exception """
+        message = 'Object "%s" was not found in module/class "%s".' % (objectName, moduleName)
+        super(UnknownObjectError, self).__init__(message)
+        
 class InvalidMaxRetriesError(ConfigurationError):
     """ max_retries must be a positive integer. """
     def __init__(self, machineName, maxRetries):
