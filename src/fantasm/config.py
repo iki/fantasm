@@ -210,7 +210,7 @@ def _resolveClass(className, namespace):
     except AttributeError:
         raise exceptions.UnknownClassError(moduleName, className)
     
-def _resolveObject(objectName, namespace):
+def _resolveObject(objectName, namespace, expectedType=basestring):
     """ Given a string name/path of a object, locates and returns the value of the object. 
     
     @param objectName: ie. MODULE_LEVEL_CONSTANT, ActionName.CLASS_LEVEL_CONSTANT
@@ -219,21 +219,24 @@ def _resolveObject(objectName, namespace):
     
     if '.' in objectName:
         classOrObjectName = objectName[:objectName.rfind('.')]
-        objectName = objectName[objectName.rfind('.')+1:]
+        objectName2 = objectName[objectName.rfind('.')+1:]
     else:
         classOrObjectName = objectName
         
     resolvedClassOrObject = _resolveClass(classOrObjectName, namespace)
     
-    if isinstance(resolvedClassOrObject, str):
+    if isinstance(resolvedClassOrObject, expectedType):
         return resolvedClassOrObject
     
     try:
-        resolvedObject = getattr(resolvedClassOrObject, objectName)
-        return resolvedObject
+        resolvedObject = getattr(resolvedClassOrObject, objectName2)
     except AttributeError:
-        raise exceptions.UnknownObjectError(classOrObjectName, objectName)
+        raise exceptions.UnknownObjectError(objectName)
         
+    if not isinstance(resolvedObject, expectedType):
+        raise exceptions.UnexpectedObjectTypeError(objectName, expectedType)
+        
+    return resolvedObject
         
 class _MachineConfig(object):
     """ Configuration of a machine. """

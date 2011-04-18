@@ -209,10 +209,17 @@ class UnknownClassError(ConfigurationError):
         
 class UnknownObjectError(ConfigurationError):
     """ When resolving actions, the object was not found. """
-    def __init__(self, moduleName, objectName):
+    def __init__(self, objectName):
         """ Initialize exception """
-        message = 'Object "%s" was not found in module/class "%s".' % (objectName, moduleName)
+        message = 'Object "%s" was not found.' % (objectName)
         super(UnknownObjectError, self).__init__(message)
+        
+class UnexpectedObjectTypeError(ConfigurationError):
+    """ When resolving actions, the object was not found. """
+    def __init__(self, objectName, expectedType):
+        """ Initialize exception """
+        message = 'Object "%s" is not of type "%s".' % (objectName, expectedType)
+        super(UnexpectedObjectTypeError, self).__init__(message)
         
 class InvalidMaxRetriesError(ConfigurationError):
     """ max_retries must be a positive integer. """

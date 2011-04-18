@@ -916,6 +916,26 @@ state_machines:
             self.configuration.machines['machineName'].transitions['state1--just-a-plain-old-string'].event
         )
         
+        
+    WRONG_TYPE = 999
+    
+    def test_wrong_type(self):
+        self.assertRaises(exceptions.UnexpectedObjectTypeError, self._test, 
+"""
+state_machines:
+- name: machineName
+  namespace: fantasm_tests.config_test
+  states:
+    - name: state1
+      action: fantasm_tests.fsm_test.CountExecuteCalls
+      initial: True
+      transitions:
+      - event: TestNamespacedEvents.WRONG_TYPE
+        to: state2
+    - name: state2
+      final: True
+""")
+        
 class TestStatesWithAndWithoutDoActions(unittest.TestCase):
     
     def _test(self, yamlString):
