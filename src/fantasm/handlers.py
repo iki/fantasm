@@ -100,19 +100,34 @@ class FSMGraphvizHandler(webapp.RequestHandler):
         from fantasm.utils import outputMachineConfig
         machineConfig = getMachineConfig(self.request)
         content = outputMachineConfig(machineConfig, skipStateNames=[self.request.GET.get('skipStateName')])
-        if self.request.GET.get('type', 'png') == 'png':
+        
+        cht = self.request.GET.get('cht', 'dot')
+        chs = self.request.GET.get('chs', '')
+        chl = content.replace('\n', ' ')
+        chd = self.request.GET.get('chd', '')
+        chof = self.request.GET.get('chof', 'png')
+        
+        if chof == 'png':
             self.response.out.write(
 """
 <html>
 <head></head>
 <body onload="javascript:document.forms.chartform.submit();">
 <form id='chartform' action='http://chart.apis.google.com/chart' method='POST'>
-  <input type="hidden" name="cht" value="gv:dot"  />
+  <input type="hidden" name="cht" value="gv:%(cht)s"  />
+  <input type="hidden" name="chs" value="%(chs)s"  />
   <input type="hidden" name="chl" value='%(chl)s'  />
+  <input type="hidden" name="chd" value="%(chd)s"  />
+  <input type="hidden" name="chof" value="%(chof)s"  />
   <input type="submit" value="Generate GraphViz .png" />
 </form>
 </body>
-""" % {'chl': content.replace('\n', ' ')})
+""" % {'cht': cht,
+       'chs': chs,
+       'chl': chl,
+       'chd': chd,
+       'chof': chof})
+            
         else:
             self.response.out.write(content)
             

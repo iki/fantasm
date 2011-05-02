@@ -4,6 +4,7 @@ import uuid
 import logging
 from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.ext import webapp
+from google.appengine.ext import db
 from complex_machine import TestModel
 import email_batch
 import backup
@@ -90,6 +91,14 @@ class MakeAModel(webapp.RequestHandler):
     def get(self):
         TestModel(prop1=str(uuid.uuid4())).put()
         
+class Make100Models(webapp.RequestHandler):
+    
+    def get(self):
+        models = []
+        for i in range(100):
+            models.append(TestModel(prop1=str(uuid.uuid4())))
+        db.put(models)
+        
 class Start100ComplexMachine(webapp.RequestHandler):
     
     def get(self):
@@ -106,6 +115,7 @@ class Start100ComplexMachineCountdown(webapp.RequestHandler):
 application = webapp.WSGIApplication([
     ('/', HomePage), 
     ('/MakeAModel/', MakeAModel),
+    ('/Make100Models/', Make100Models),
     ('/Start100ComplexMachine/', Start100ComplexMachine),
     ('/Start100ComplexMachineCountdown/', Start100ComplexMachineCountdown),
     ('/create-subscribers/', email_batch.CreateSubscribers),
