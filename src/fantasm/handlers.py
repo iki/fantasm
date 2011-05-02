@@ -107,7 +107,9 @@ class FSMGraphvizHandler(webapp.RequestHandler):
         chd = self.request.GET.get('chd', '')
         chof = self.request.GET.get('chof', 'png')
         
-        if chof == 'png':
+        type = self.request.GET.get('type', False)
+        
+        if not type:
             self.response.out.write(
 """
 <html>
@@ -119,7 +121,7 @@ class FSMGraphvizHandler(webapp.RequestHandler):
   <input type="hidden" name="chl" value='%(chl)s'  />
   <input type="hidden" name="chd" value="%(chd)s"  />
   <input type="hidden" name="chof" value="%(chof)s"  />
-  <input type="submit" value="Generate GraphViz .png" />
+  <input type="submit" value="Generate GraphViz .%(chof)s" />
 </form>
 </body>
 """ % {'cht': cht,
