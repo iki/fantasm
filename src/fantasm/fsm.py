@@ -504,11 +504,11 @@ class FSMContext(dict):
         if transition.target.isFanIn:
             task = self._queueDispatchFanIn(nextEvent, fanInPeriod=transition.target.fanInPeriod,
                                             retryOptions=transition.retryOptions,
-                                            queueName=transition.queueName)
+                                            queueName=self.__obj.get(constants.QUEUE_NAME_PARAM) or transition.queueName)
         else:
             task = self._queueDispatchNormal(nextEvent, queue=queue, countdown=transition.countdown,
                                              retryOptions=transition.retryOptions,
-                                             queueName=transition.queueName)
+                                             queueName=self.__obj.get(constants.QUEUE_NAME_PARAM) or transition.queueName)
             
         return task
         
