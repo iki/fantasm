@@ -347,7 +347,7 @@ class FSMContext(dict):
         forkedContexts.append(self.clone(data=data))
     
     def spawn(self, machineName, contexts, countdown=0, method='POST', 
-              _currentConfig=None):
+              _currentConfig=None, taskName=None):
         """ Spawns new machines.
         
         @param machineName the machine to spawn
@@ -355,11 +355,11 @@ class FSMContext(dict):
                         multiple machines
         @param countdown the countdown (in seconds) to wait before spawning machines
         @param method the method ('GET' or 'POST') to invoke the machine with (default: POST)
-        
         @param _currentConfig test injection for configuration
+        @param taskName used for idempotency; will become the root of the task name for the actual task queued
         """
         # using the current task name as a root to startStateMachine will make this idempotent
-        taskName = self.__obj[constants.TASK_NAME_PARAM]
+        taskName = taskName or self.__obj[constants.TASK_NAME_PARAM]
         startStateMachine(machineName, contexts, taskName=taskName, method=method, countdown=countdown, 
                           _currentConfig=_currentConfig, headers=self.headers)
     
@@ -480,7 +480,8 @@ class FSMContext(dict):
             # pylint: disable-msg=W0212
             # - accessing the protected method is fine here, since it is an instance of the same class
             transition = self.startingState.getTransition(self.startingEvent)
-            context._queueDispatchNormal(self.startingEvent, queue=True, queueName=transition.queueName)
+            context._queueDispatchNormal(self.startingEvent, queue=True, queueName=transition.queueName,
+                                         retryOptions=transition.retryOptions)
             
         except (TaskAlreadyExistsError, TombstonedTaskError):
             # this can happen when currentState.dispatch() previously succeeded in queueing the continuation
