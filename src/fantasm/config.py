@@ -178,6 +178,8 @@ def _resolveClass(className, namespace):
     
     # some shortcuts for context_types
     shortTypes = {
+        'str': str,
+        'unicode': unicode,
         'dict': simplejson.loads,
         'int': int,
         'float': float,

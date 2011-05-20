@@ -149,10 +149,15 @@ class FSMContextTests(unittest.TestCase):
         self.assertEqual({'foo': 'bar'}, clone)
         self.assertEqual(self.context.instanceName, clone.instanceName)
         
-    def test_clone_data(self):
+    def test_clone_updateData(self):
         self.context['foo'] = 'bar'
-        clone = self.getContextWithoutSpecialEntries().clone(data={'abc': '123'})
+        clone = self.getContextWithoutSpecialEntries().clone(updateData={'abc': '123'})
         self.assertEqual({'foo': 'bar', 'abc': '123'}, clone)
+
+    def test_clone_replaceData(self):
+        self.context['foo'] = 'bar'
+        clone = self.getContextWithoutSpecialEntries().clone(replaceData={'abc': '123'})
+        self.assertEqual({'abc': '123'}, clone)
         
     def test_clone_instanceName(self):
         self.context['foo'] = 'bar'

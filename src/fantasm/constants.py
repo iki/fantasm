@@ -46,6 +46,10 @@ INDEX_PARAM = '__ix__'
 WORK_INDEX_PARAM = '__wix__'
 FORK_PARAM = '__fk__'
 STARTED_AT_PARAM = '__sa__'
+CONTEXT_PARAMS = (STEPS_PARAM, CONTINUATION_PARAM, GEN_PARAM, INDEX_PARAM, WORK_INDEX_PARAM, 
+                  FORK_PARAM, STARTED_AT_PARAM)
+
+PRIVATE_PARAMS = set(NON_CONTEXT_PARAMS) | set(CONTEXT_PARAMS)
 
 # this dict is used for casting strings in HttpRequest.GET to the appropriate type to put into FSMContext
 PARAM_TYPES = {

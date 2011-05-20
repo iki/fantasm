@@ -344,7 +344,7 @@ class FSMContext(dict):
         forkedContexts = obj.get(constants.FORKED_CONTEXTS_PARAM)
         data = copy.copy(data) or {}
         data[constants.FORK_PARAM] = len(forkedContexts)
-        forkedContexts.append(self.clone(data=data))
+        forkedContexts.append(self.clone(updateData=data))
     
     def spawn(self, machineName, contexts, countdown=0, method='POST', 
               _currentConfig=None, taskName=None):
@@ -594,6 +594,9 @@ class FSMContext(dict):
                 if payload != workIndex:
                     self.logger.info("Work index changed from '%s' to '%s' on retry.", payload, workIndex)
                     workIndex = payload
+        
+        # update this here so it gets written down into the work package too
+        self[constants.INDEX_PARAM] = index
                 
         # write down two models, one actual work package, one idempotency package
         keyName = '-'.join([str(i) for i in [actualTaskName, fork] if i]) or None
@@ -618,7 +621,6 @@ class FSMContext(dict):
             
             # insert a task to run in the future and process a bunch of work packages
             now = time.time()
-            self[constants.INDEX_PARAM] = index
             url = self.buildUrl(self.currentState, nextEvent)
             params = self.buildParams(self.currentState, nextEvent)
             task = Task(name='%s-%d' % (taskNameBase, index),
@@ -689,7 +691,7 @@ class FSMContext(dict):
                              .order('__key__')
                              
         # construct a list of FSMContexts
-        contexts = [self.clone(data=r.context) for r in query]
+        contexts = [self.clone(replaceData=r.context) for r in query]
         return FSMContextList(self, contexts)
         
     def _getTaskRetryLimit(self):
@@ -798,18 +800,23 @@ class FSMContext(dict):
         parts.append('step-' + str(self[constants.STEPS_PARAM]))
         return '--'.join(parts)
     
-    def clone(self, instanceName=None, data=None):
+    def clone(self, instanceName=None, updateData=None, replaceData=None):
         """ Returns a copy of the FSMContext.
         
         @param instanceName: the instance name to optionally apply to the clone
-        @param data: a dict/mapping of data to optionally apply (.update()) to the clone
+        @param updateData: a dict/mapping of data to optionally apply (.update()) to the clone
+        @param replaceData: a dict/mapping of data to optionally apply (.clear()/.update()) to the clone
         @return: a new FSMContext instance
         """
+        assert (not updateData) or (not replaceData), "cannot update and replace data at the same time"
         context = copy.deepcopy(self)
         if instanceName:
             context.instanceName = instanceName
-        if data:
-            context.update(data)
+        if updateData:
+            context.update(updateData)
+        if replaceData:
+            context.clear()
+            context.update(replaceData)
         return context
     
 # pylint: disable-msg=C0103

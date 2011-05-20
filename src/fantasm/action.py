@@ -83,3 +83,41 @@ class DatastoreContinuationFSMAction(ContinuationFSMAction):
     def getBatchSize(self, context, obj): # pylint: disable-msg=W0613
         """ Returns a batch size, default 1. Override for different values. """
         return 1
+
+class ListContinuationFSMAction(ContinuationFSMAction):
+    """ A list-of-things continuation. """
+    
+    def getList(self, context, obj):
+        """ Returns a list of items to continue over. THIS LIST CANNOT CHANGE BETWEEN CALLS!!!"""
+        raise NotImplementedError()
+    
+    def getBatchSize(self, context, obj): # pylint: disable-msg=W0613
+        """ Returns a batch size, default 1. Override for different values. """
+        return 1
+    
+    def continuation(self, context, obj, token=None):
+        """ Accepts a token (an optional index) and returns the next token for the continutation. 
+        The results of getList()[token] are stored on obj.results.
+        """
+        # the token is the index into the list
+        items = self.getList(context, obj)
+        index = int(token or '0')
+        batchsize = self.getBatchSize(context, obj)
+        results = items[index:index + batchsize]
+        
+        # place results on obj.results
+        obj['results'] = results
+        obj.results = obj['results'] # deprecated interface'
+        
+        # add first obj.results item on obj.result - convenient for batch size 1
+        if obj['results'] and len(obj['results']) > 0:
+            obj['result'] = obj['results'][0]
+        else:
+            obj['result'] = None
+        obj.result = obj['result'] # deprecated interface
+            
+        index += batchsize
+        # unlike a datastore continuation, we know when the end of the data
+        # occurs by the value of the token.
+        if index < len(items):
+            return str(index)

@@ -132,7 +132,7 @@ def getLoggingDouble():
     mock(name='Logger.getLoggingMap', returns_func=getLoggingMap, tracker=None)
     return loggingDouble
 
-def runQueuedTasks(queueName='default', assertTasks=True, tasksOverride=None, speedup=True):
+def runQueuedTasks(queueName='default', assertTasks=True, tasksOverride=None, speedup=True, maxRetries=10):
     """ Ability to run Tasks from unit/integration tests """
     # pylint: disable-msg=W0212
     #         allow access to protected member _IsValidQueue
@@ -154,6 +154,10 @@ def runQueuedTasks(queueName='default', assertTasks=True, tasksOverride=None, sp
             
             if task['name'] in alreadyRun:
                 continue
+            
+            if maxRetries is not None:
+                if retries.get(task['name'], 0) > maxRetries:
+                    continue
             
             if task.has_key('eta'):
                 
