@@ -174,6 +174,12 @@ class TestDatastoreContinuationFSMAction(DatastoreContinuationFSMAction):
             raise Exception()
         return 'next-event'
     
+class TestDatastoreContinuationFSMActionFanInGroupFSMAction(TestDatastoreContinuationFSMAction):
+    def execute(self, context, obj):
+        if obj.has_key('results') and obj['results']:
+            context['fan-in-group'] = obj['results'][0].key().id_or_name()
+        return super(TestDatastoreContinuationFSMActionFanInGroupFSMAction, self).execute(context, obj)    
+    
 class HappySadContinuationFSMAction(TestDatastoreContinuationFSMAction):
     def execute(self, context, obj):
         if not obj['results']:

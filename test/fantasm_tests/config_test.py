@@ -390,6 +390,10 @@ class TestStateDictionaryProcessing(unittest.TestCase):
         self.stateDict[constants.STATE_FAN_IN_ATTRIBUTE] = 'abc'
         self.assertRaises(exceptions.InvalidFanInError, self.fsm.addState, self.stateDict)
         
+    def test_faninGroupRequiresFanIn(self):
+        self.stateDict[constants.STATE_FAN_IN_GROUP_ATTRIBUTE] = 'abc'
+        self.assertRaises(exceptions.InvalidFanInGroupError, self.fsm.addState, self.stateDict)
+        
     def test_faninParsed(self):
         self.stateDict[constants.STATE_FAN_IN_ATTRIBUTE] = 10
         state = self.fsm.addState(self.stateDict)

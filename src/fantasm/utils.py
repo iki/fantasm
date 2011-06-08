@@ -75,6 +75,8 @@ def outputStateConfig(stateConfig, colorMap=None):
         label += '|continuation = True'
     if stateConfig.fanInPeriod != constants.NO_FAN_IN:
         label += '|fan in period = %(fanin)ds' % {'fanin': stateConfig.fanInPeriod}
+    if stateConfig.fanInGroup:
+        label += '|fan in group = %(faningroup)s' % {'faningroup': stateConfig.fanInGroup}
     shape = 'Mrecord'
     if colorMap.get(stateConfig.name):
         return '"%(stateName)s" [style=filled,fillcolor="%(fillcolor)s",shape=%(shape)s,label="{%(label)s}"];' % \

@@ -167,6 +167,7 @@ class FSM(object):
         isFinalState = stateConfig.final
         isContinuation = stateConfig.continuation
         fanInPeriod = stateConfig.fanInPeriod
+        fanInGroup = stateConfig.fanInGroup
         
         return State(name, 
                      entryAction, 
@@ -176,7 +177,8 @@ class FSM(object):
                      isInitialState=isInitialState,
                      isFinalState=isFinalState,
                      isContinuation=isContinuation,
-                     fanInPeriod=fanInPeriod)
+                     fanInPeriod=fanInPeriod,
+                     fanInGroup=fanInGroup)
             
     def _getTransition(self, machineConfig, transitionConfig):
         """ Returns a Transition instance based on the machineConfig/transitionConfig 
@@ -555,6 +557,13 @@ class FSMContext(dict):
         self.pop(constants.GEN_PARAM, None)
         fork = self.pop(constants.FORK_PARAM, None)
         
+        # transfer the fan-in-group into the context (under a fixed value key) so that states beyond 
+        # the fan-in get unique Task names
+        # FIXME: this will likely change once we formalize what to do post fan-in
+        transition = self.currentState.getTransition(nextEvent)
+        if self.get(transition.target.fanInGroup):
+            self[constants.FAN_IN_GROUP_PARAM] = self[transition.target.fanInGroup]
+        
         taskNameBase = self.getTaskName(nextEvent, fanIn=True)
         rwlock = ReadWriteLock(taskNameBase, self)
         index = rwlock.currentIndex()
@@ -798,6 +807,8 @@ class FSMContext(dict):
         parts.append(nextEvent)
         parts.append(transition.target.name)
         parts.append('step-' + str(self[constants.STEPS_PARAM]))
+        if self.get(constants.FAN_IN_GROUP_PARAM):
+            parts.append('group-' + str(self[constants.FAN_IN_GROUP_PARAM]))
         return '--'.join(parts)
     
     def clone(self, instanceName=None, updateData=None, replaceData=None):

@@ -389,6 +389,14 @@ class _StateConfig(object):
             self.fanInPeriod = int(self.fanInPeriod)
         except ValueError:
             raise exceptions.InvalidFanInError(self.machineName, self.name, self.fanInPeriod)
+        
+        # state fan_in_group
+        self.fanInGroup = stateDict.get(constants.STATE_FAN_IN_GROUP_ATTRIBUTE, None)
+        # TODO: What makes a valid grouping attribute?
+        # if a fan_in_group is specified, make sure this is a fan_in.
+        if self.fanInGroup and self.fanInPeriod == constants.NO_FAN_IN:
+            raise exceptions.InvalidFanInGroupError(self.machineName, self.name, self.fanInGroup)
+
             
         # check that a state is not BOTH fan_in and continuation
         if self.continuation and self.fanInPeriod != constants.NO_FAN_IN:

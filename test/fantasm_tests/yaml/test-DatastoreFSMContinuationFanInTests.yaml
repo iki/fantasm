@@ -1,4 +1,75 @@
 state_machines:
+
+
+- name: DatastoreFSMContinuationFanInGroupDefaultTests
+  namespace: fantasm_tests.actions
+  states:
+    
+    - name: state-initial
+      entry: CountExecuteCalls
+      action: CountExecuteCalls
+      initial: True
+      transitions:
+        - event: next-event
+          to: state-continuation
+      
+    - name: state-continuation
+      entry: CountExecuteCalls
+      action: TestDatastoreContinuationFSMAction
+      continuation: True
+      final: True # query may return no results
+      transitions:
+        - event: next-event
+          to: state-fan-in
+      
+    - name: state-fan-in
+      entry: CountExecuteCallsFanInEntry
+      action: CountExecuteCallsFanIn
+      fan_in: 5
+      fan_in_group: fan-in-group
+      transitions:
+        - event: next-event
+          to: state-final
+      
+    - name: state-final
+      entry: CountExecuteCalls
+      action: CountExecuteCallsFinal
+      final: True
+      
+- name: DatastoreFSMContinuationFanInGroupTests
+  namespace: fantasm_tests.actions
+  states:
+    
+    - name: state-initial
+      entry: CountExecuteCalls
+      action: CountExecuteCalls
+      initial: True
+      transitions:
+        - event: next-event
+          to: state-continuation
+      
+    - name: state-continuation
+      entry: CountExecuteCalls
+      action: TestDatastoreContinuationFSMActionFanInGroupFSMAction
+      continuation: True
+      final: True # query may return no results
+      transitions:
+        - event: next-event
+          to: state-fan-in
+      
+    - name: state-fan-in
+      entry: CountExecuteCallsFanInEntry
+      action: CountExecuteCallsFanIn
+      fan_in: 5
+      fan_in_group: fan-in-group
+      transitions:
+        - event: next-event
+          to: state-final
+      
+    - name: state-final
+      entry: CountExecuteCalls
+      action: CountExecuteCallsFinal
+      final: True
   
 - name: DatastoreFSMContinuationFanInTests
   namespace: fantasm_tests.actions

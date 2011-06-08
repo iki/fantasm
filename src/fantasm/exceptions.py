@@ -412,6 +412,14 @@ class InvalidFanInError(ConfigurationError):
         message = '%s "%s" is invalid. Must be an integer. (Machine %s, State %s)' % \
                   (constants.STATE_FAN_IN_ATTRIBUTE, fanInPeriod, machineName, stateName)
         super(InvalidFanInError, self).__init__(message)
+        
+class InvalidFanInGroupError(ConfigurationError):
+    """ fan_in_group must be a string key. """
+    def __init__(self, machineName, stateName, fanInGroup):
+        """ Initialize exception """
+        message = '%s "%s" is invalid. Requires fan_in attribute as well. (Machine %s, State %s)' % \
+                  (constants.STATE_FAN_IN_GROUP_ATTRIBUTE, fanInGroup, machineName, stateName)
+        super(InvalidFanInGroupError, self).__init__(message)
 
 class FanInContinuationNotSupportedError(ConfigurationError):
     """ Cannot have fan_in and continuation on the same state, because it hurts our head at the moment. """

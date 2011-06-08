@@ -675,6 +675,94 @@ class RunTasksTests_DatastoreFSMContinuationFanInTests(RunTasksBaseTest):
 class RunTasksTests_DatastoreFSMContinuationFanInTests_POST(RunTasksTests_DatastoreFSMContinuationFanInTests):
     METHOD = 'POST'
     
+class RunTasksTests_DatastoreFSMContinuationFanInGroupDefaultTests(RunTasksBaseTest):
+    
+    FILENAME = 'test-DatastoreFSMContinuationFanInTests.yaml'
+    MACHINE_NAME = 'DatastoreFSMContinuationFanInGroupDefaultTests'
+    
+    def setUp(self):
+        super(RunTasksTests_DatastoreFSMContinuationFanInGroupDefaultTests, self).setUp()
+        CountExecuteCallsFanIn.CONTEXTS = []
+                
+    def tearDown(self):
+        super(RunTasksTests_DatastoreFSMContinuationFanInGroupDefaultTests, self).tearDown()
+        CountExecuteCallsFanIn.CONTEXTS = []
+        
+    def test_DatastoreFSMContinuationFanInTests(self):
+        # FIXME: this test is non-deterministic based on time.time in _queueDispatchFanIn
+        self.context.initialize() # queues the first task
+        ran = runQueuedTasks(queueName=self.context.queueName)
+        self.assertEqual(['instanceName--pseudo-init--pseudo-init--state-initial--step-0', 
+                          'instanceName--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-1--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-2--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-3--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-4--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-5--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--state-continuation--next-event--state-fan-in--step-2-1', 
+                          'instanceName--work-index-1--state-fan-in--next-event--state-final--step-3'], ran)
+        self.assertEqual({'state-initial': {'entry': 1, 'action': 1, 'exit': 0},
+                          'state-continuation': {'entry': 6, 'action': 5, 'continuation': 6, 'exit': 0},
+                          'state-fan-in': {'entry': 1, 'action': 1, 'exit': 0, 
+                                           'fan-in-entry': 5, 'fan-in-action': 5, 'fan-in-exit': 0},
+                          'state-final': {'entry': 1, 'action': 1, 'exit': 0},
+                          'state-initial--next-event': {'action': 0},
+                          'state-continuation--next-event': {'action': 0},
+                          'state-fan-in--next-event': {'action': 0}}, 
+                 getCounts(self.machineConfig))
+        
+class RunTasksTests_DatastoreFSMContinuationFanInGroupDefaultTests_POST(
+                                                        RunTasksTests_DatastoreFSMContinuationFanInGroupDefaultTests):
+    METHOD = 'POST'
+    
+class RunTasksTests_DatastoreFSMContinuationFanInGroupTests(RunTasksBaseTest):
+    
+    FILENAME = 'test-DatastoreFSMContinuationFanInTests.yaml'
+    MACHINE_NAME = 'DatastoreFSMContinuationFanInGroupTests'
+    
+    def setUp(self):
+        super(RunTasksTests_DatastoreFSMContinuationFanInGroupTests, self).setUp()
+        CountExecuteCallsFanIn.CONTEXTS = []
+                
+    def tearDown(self):
+        super(RunTasksTests_DatastoreFSMContinuationFanInGroupTests, self).tearDown()
+        CountExecuteCallsFanIn.CONTEXTS = []
+        
+    def test_DatastoreFSMContinuationFanInTests(self):
+        # FIXME: this test is non-deterministic based on time.time in _queueDispatchFanIn
+        self.context.initialize() # queues the first task
+        ran = runQueuedTasks(queueName=self.context.queueName)
+        self.assertEqual(['instanceName--pseudo-init--pseudo-init--state-initial--step-0', 
+                          'instanceName--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-1--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-2--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-3--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-4--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--continuation-1-5--state-initial--next-event--state-continuation--step-1', 
+                          'instanceName--state-continuation--next-event--state-fan-in--step-2--group-0-1', 
+                          'instanceName--work-index-1--state-fan-in--next-event--state-final--step-3--group-0', 
+                          'instanceName--state-continuation--next-event--state-fan-in--step-2--group-2-1', 
+                          'instanceName--work-index-1--state-fan-in--next-event--state-final--step-3--group-2', 
+                          'instanceName--state-continuation--next-event--state-fan-in--step-2--group-4-1', 
+                          'instanceName--work-index-1--state-fan-in--next-event--state-final--step-3--group-4', 
+                          'instanceName--state-continuation--next-event--state-fan-in--step-2--group-6-1', 
+                          'instanceName--work-index-1--state-fan-in--next-event--state-final--step-3--group-6', 
+                          'instanceName--state-continuation--next-event--state-fan-in--step-2--group-8-1', 
+                          'instanceName--work-index-1--state-fan-in--next-event--state-final--step-3--group-8'], ran)
+        self.assertEqual({'state-initial': {'entry': 1, 'action': 1, 'exit': 0},
+                          'state-continuation': {'entry': 6, 'action': 5, 'continuation': 6, 'exit': 0},
+                          'state-fan-in': {'entry': 5, 'action': 5, 'exit': 0, 
+                                           'fan-in-entry': 5, 'fan-in-action': 5, 'fan-in-exit': 0},
+                          'state-final': {'entry': 5, 'action': 5, 'exit': 0},
+                          'state-initial--next-event': {'action': 0},
+                          'state-continuation--next-event': {'action': 0},
+                          'state-fan-in--next-event': {'action': 0}}, 
+                 getCounts(self.machineConfig))
+        
+class RunTasksTests_DatastoreFSMContinuationFanInGroupTests_POST(RunTasksTests_DatastoreFSMContinuationFanInGroupTests):
+    METHOD = 'POST'
+    
+    
 class RunTasksTests_DatastoreFSMContinuationFanInTests_memcache_problems(RunTasksBaseTest):
     
     FILENAME = 'test-DatastoreFSMContinuationFanInTests.yaml'
