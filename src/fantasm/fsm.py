@@ -561,7 +561,7 @@ class FSMContext(dict):
         # the fan-in get unique Task names
         # FIXME: this will likely change once we formalize what to do post fan-in
         transition = self.currentState.getTransition(nextEvent)
-        if self.get(transition.target.fanInGroup):
+        if self.get(transition.target.fanInGroup) is not None:
             self[constants.FAN_IN_GROUP_PARAM] = self[transition.target.fanInGroup]
         
         taskNameBase = self.getTaskName(nextEvent, fanIn=True)
@@ -807,7 +807,7 @@ class FSMContext(dict):
         parts.append(nextEvent)
         parts.append(transition.target.name)
         parts.append('step-' + str(self[constants.STEPS_PARAM]))
-        if self.get(constants.FAN_IN_GROUP_PARAM):
+        if self.get(constants.FAN_IN_GROUP_PARAM) is not None:
             parts.append('group-' + str(self[constants.FAN_IN_GROUP_PARAM]))
         return '--'.join(parts)
     
