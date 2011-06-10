@@ -9,6 +9,29 @@ from fantasm.constants import FORK_PARAM
 # - docstrings not reqd in unit tests
 # - these actions do not use arguments
 
+class Custom(object):
+    def __init__(self, string):
+        self.impl = eval(string)
+    def __repr__(self):
+        return repr(self.impl)
+
+class CustomImpl(Custom):
+    def __init__(self, a=None, b=None):
+        self.a = a
+        self.b = b
+    def __repr__(self):
+        return 'CustomImpl(a="%s", b="%s")' % (self.a, self.b)
+    def __eq__(self, other):
+        # just for unit test equality
+        if other.__class__ is Custom:
+            other = other.impl
+        return self.a == other.a and self.b == other.b
+    def __ne__(self, other):
+        # just for unit test inequality
+        if other.__class__ is Custom:
+            other = other.impl
+        return self.a != other.a or self.b != other.b
+
 class ContextRecorder(object):
     CONTEXTS = []
     def execute(self, context, obj):

@@ -73,6 +73,7 @@ state_machines:
       dict_db_Key_defined_in_context_types: json
       bool1: bool
       bool2: bool
+      custom: fantasm_tests.actions.Custom
       
 
   states:

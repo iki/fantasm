@@ -15,7 +15,7 @@ from fantasm_tests.fixtures import AppEngineTestCase
 from fantasm_tests.fsm_test import TestModel
 from fantasm_tests.fsm_test import getLoggingDouble
 from fantasm_tests.actions import ContextRecorder, CountExecuteCallsFanIn, TestFileContinuationFSMAction, \
-                                  DoubleContinuation1, DoubleContinuation2, ResultModel
+                                  DoubleContinuation1, DoubleContinuation2, ResultModel, CustomImpl
 from minimock import mock, restore
 from google.appengine.api import datastore_types
 
@@ -178,6 +178,7 @@ class ParamsTests(RunTasksBaseTest):
         self.context['dict_db_Key'] = {'a': models[1].key()} # BAD!!!! not defined in context_types
         self.context['dict_db_Key_defined_in_context_types'] = {'a': models[1].key()}
         self.context['unicode2'] = "  Mik\xe9 ,  Br\xe9\xe9 ,  Michael.Bree-1@gmail.com ,  Montr\xe9al  ".decode('iso-8859-1')
+        self.context['custom'] = [CustomImpl(a='A', b='B')]
         
         self.context.initialize() # queues the first task
         ran = runQueuedTasks(queueName=self.context.queueName)
@@ -185,7 +186,8 @@ class ParamsTests(RunTasksBaseTest):
         self.assertEqual(['instanceName--pseudo-init--pseudo-init--state-initial--step-0',
                           'instanceName--state-initial--next-event--state-final--step-1'], ran)
         
-        self.assertEqual([{'db_Key': 'agdmYW50YXNtchALEglUZXN0TW9kZWwiATAM',
+        self.assertEqual([{'custom': [CustomImpl(a="A", b="B")],
+                           'db_Key': 'agdmYW50YXNtchALEglUZXN0TW9kZWwiATAM',
                            'db_Key_defined_in_context_types': datastore_types.Key.from_path(u'TestModel', u'0', _app=u'fantasm'),
                            'char': 'a',
                            'unicode': u'\xe8',
