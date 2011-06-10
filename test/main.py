@@ -95,7 +95,7 @@ class Make100Models(webapp.RequestHandler):
     
     def get(self):
         models = []
-        for i in range(100):
+        for i in range(100): # pylint: disable-msg=W0612
             models.append(TestModel(prop1=str(uuid.uuid4())))
         db.put(models)
         

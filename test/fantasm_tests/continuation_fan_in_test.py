@@ -6,11 +6,14 @@ from fantasm.action import ListContinuationFSMAction
 from fantasm_tests.fixtures import AppEngineTestCase
 from fantasm_tests.helpers import runQueuedTasks
 from fantasm_tests.helpers import setUpByString
-from fantasm_tests.helpers import getLoggingDouble
 from fantasm.models import _FantasmFanIn
-from fantasm import config
-from fantasm.handlers import FSMFanInCleanupHandler
+from fantasm import config # pylint: disable-msg=W0611
+from fantasm.handlers import FSMFanInCleanupHandler # pylint: disable-msg=W0611
 from minimock import mock, restore
+
+# pylint: disable-msg=C0111,W0613
+# - docstrings not reqd in unit tests
+# - arguments 'obj' are often unused in tets
 
 class ContinuationFanInModel( db.Model ):
     value = db.IntegerProperty()
@@ -23,12 +26,16 @@ class DatastoreContinuation( DatastoreContinuationFSMAction ):
         return ContinuationFanInModel.all()
     def getBatchSize(self, context, obj):
         return context.get('batchsize', 1)
+    def execute(self, context, obj):
+        pass
     
 class ListContinuation( ListContinuationFSMAction ):
     def getList(self, context, obj):
         return context.get('items', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
     def getBatchSize(self, context, obj):
         return context.get('batchsize', 1)
+    def execute(self, context, obj):
+        pass
     
 class InsideDatastoreContinuationAction( DatastoreContinuation ):
     def execute(self, context, obj):
@@ -283,7 +290,8 @@ class OutsideTest( BaseTest ):
         self.context.initialize() # queues the first task
         runQueuedTasks(maxRetries=0)
         self.assertEqual(10 + self.EXTRA_COUNT, _FantasmFanIn.all().count())
-        self.assertEqual(self.EXTRA_VALUES + self.EXPECTED_VALUES, sorted(ContinuationFanInResult.get_by_key_name('test').values))
+        self.assertEqual(self.EXTRA_VALUES + self.EXPECTED_VALUES, 
+                         sorted(ContinuationFanInResult.get_by_key_name('test').values))
             
     def test_batchsize_3(self):
         self.context['batchsize'] = 3
@@ -297,7 +305,8 @@ class OutsideTest( BaseTest ):
         self.context.initialize() # queues the first task
         runQueuedTasks(maxRetries=0)
         self.assertEqual(1 + self.EXTRA_COUNT, _FantasmFanIn.all().count())
-        self.assertEqual(self.EXTRA_VALUES + self.EXPECTED_VALUES, sorted(ContinuationFanInResult.get_by_key_name('test').values))
+        self.assertEqual(self.EXTRA_VALUES + self.EXPECTED_VALUES, 
+                         sorted(ContinuationFanInResult.get_by_key_name('test').values))
             
     def test_batchsize_11(self):
         self.context['batchsize'] = 11

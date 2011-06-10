@@ -9,14 +9,14 @@ import tempfile
 from collections import defaultdict
 from minimock import mock
 import google.appengine.api.apiproxy_stub_map as apiproxy_stub_map
-import fantasm
 from fantasm import constants
 from fantasm import config
 from fantasm.fsm import FSM
 from fantasm.handlers import FSMLogHandler
 from fantasm.handlers import FSMHandler
 from fantasm.handlers import FSMFanInCleanupHandler
-from fantasm.log import Logger
+from fantasm.log import Logger # pylint: disable-msg=W0611
+                               # - used by minimock
 from google.appengine.ext import webapp
 from google.appengine.api.taskqueue.taskqueue import TaskAlreadyExistsError
 
@@ -259,7 +259,7 @@ def setUpByFilename(obj, filename, machineName=None, instanceName=None, taskRetr
     obj.currentConfig = config.loadYaml(filename=filename)
     obj.machineConfig = obj.currentConfig.machines[obj.machineName]
     if taskRetryLimitOverrides:
-        overrideTaskRetryLimitRetries(obj.machineConfig, taskRetryLimitOverrides)
+        overrideTaskRetryLimit(obj.machineConfig, taskRetryLimitOverrides)
     obj.factory = FSM(currentConfig=obj.currentConfig)
     obj.context = obj.factory.createFSMInstance(obj.machineConfig.name, instanceName=instanceName, method=method)
     obj.initialState = obj.context.initialState
@@ -355,6 +355,9 @@ def overrideTaskRetryLimit(machineConfig, overrides):
 def buildRequest(method='GET', get_args=None, post_args=None, referrer=None, 
                   path=None, cookies=None, host=None, port=None):
     """ Builds a request suitable for view.initialize(). """
+    from urllib import urlencode
+    from Cookie import BaseCookie
+    from StringIO import StringIO
 
     if not get_args:
         get_args = {}

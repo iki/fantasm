@@ -17,7 +17,8 @@ from fantasm.models import _FantasmTaskSemaphore
 from fantasm import config # pylint: disable-msg=W0611
 from fantasm import constants
 from fantasm.action import DatastoreContinuationFSMAction
-from fantasm.lock import ReadWriteLock
+from fantasm.lock import ReadWriteLock # pylint: disable-msg=W0611
+                                       # - used by minimock
 from fantasm.models import _FantasmFanIn
 
 from minimock import mock, restore
@@ -169,6 +170,9 @@ class FanInMergeJoinDispatchTest( AppEngineTestCase ):
         obj[constants.TASK_NAME_PARAM] = 'taskName'
         obj[constants.RETRY_COUNT_PARAM] = 0
         
+        self.context = None
+        self.obj = None
+        
         random.seed(0)
         context.dispatch('pseudo-init', obj) # write down a work package
         self.index = context[constants.INDEX_PARAM]
@@ -210,6 +214,8 @@ class FanInQueueDispatchTest( AppEngineTestCase ):
         for i in range(20):
             SimpleModel(key_name='%d' % i).put()
         FanInAction.CALLS = 0
+        self.context = None
+        self.obj = None
         
     def setUpContext(self, retryCount=0):
         self.context = self.factory.createFSMInstance(self.machineConfig.name, instanceName='foo')

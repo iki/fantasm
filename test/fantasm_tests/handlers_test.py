@@ -1,9 +1,14 @@
 """ Tests for fantasm.handlers """
 
+# pylint: disable-msg=C0111
+# - docstrings not reqd in tests
+
 import unittest
 from minimock import mock, restore
-from helpers import buildRequest
+from fantasm_tests.helpers import buildRequest
 from fantasm.handlers import getMachineNameFromRequest
+from fantasm import config # pylint: disable-msg=W0611
+                           # - actually used by minimock
 
 class MockConfigRootUrl(object):
     """ Simple mock config. """
@@ -39,7 +44,6 @@ class GetMachineNameFromRequestTests(unittest.TestCase):
     def test_singleLevelMountPointNoExtraPathInfo(self):
         url = '/o/fsm/MyMachine/'
         request = buildRequest(path=url)
-        from fantasm import config
         mock('config.currentConfiguration', returns=MockConfigRootUrl('/o/'), tracker=None)
         name = getMachineNameFromRequest(request)
         self.assertEquals(name, 'MyMachine')
@@ -47,7 +51,6 @@ class GetMachineNameFromRequestTests(unittest.TestCase):
     def test_singleLevelMountPointExtraPathInfo(self):
         url = '/o/fsm/MyMachine/state1/to/state2'
         request = buildRequest(path=url)
-        from fantasm import config
         mock('config.currentConfiguration', returns=MockConfigRootUrl('/o/'), tracker=None)
         name = getMachineNameFromRequest(request)
         self.assertEquals(name, 'MyMachine')
@@ -55,7 +58,6 @@ class GetMachineNameFromRequestTests(unittest.TestCase):
     def test_multipleLevelMountPointNoExtraPathInfo(self):
         url = '/other/mount/point/fsm/MyMachine/'
         request = buildRequest(path=url)
-        from fantasm import config
         mock('config.currentConfiguration', returns=MockConfigRootUrl('/other/mount/point/'), tracker=None)
         name = getMachineNameFromRequest(request)
         self.assertEquals(name, 'MyMachine')
@@ -63,7 +65,6 @@ class GetMachineNameFromRequestTests(unittest.TestCase):
     def test_multipleLevelMountPointExtraPathInfo(self):
         url = '/other/mount/point/fsm/MyMachine/state1/to/state2'
         request = buildRequest(path=url)
-        from fantasm import config
         mock('config.currentConfiguration', returns=MockConfigRootUrl('/other/mount/point/'), tracker=None)
         name = getMachineNameFromRequest(request)
         self.assertEquals(name, 'MyMachine')

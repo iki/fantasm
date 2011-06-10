@@ -15,8 +15,9 @@
 # R0801: duplicate code checker
 # E1101: '%s %r has no %r member'
 # E1103: Instance of 'X' has no member 'X' (but some types could not be inferred)
+# C0302: Too many lines in module (####)
 
-disable-msg=W0703,W0511,I0011,I0013,R0201,R0921,R0922,W0142,R0801,E1101,E1103
+disable-msg=W0703,W0511,I0011,I0013,R0201,R0921,R0922,W0142,R0801,E1101,E1103,C0302
 
 [BASIC]
 # f - file
@@ -44,9 +45,10 @@ max-public-methods=60
 max-args=15
 max-branchs=20
 max-locals=25
-max-statements=70
+max-statements=75
 max-lines=1500
-max-attributes=15
+max-module-lines=1500
+max-attributes=20
 
 [FORMAT]
 max-line-length=120

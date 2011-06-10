@@ -16,14 +16,12 @@ Copyright 2010 VendAsta Technologies Inc.
    See the License for the specific language governing permissions and
    limitations under the License.
 """
-from google.appengine.ext import db
 from google.appengine.api.taskqueue.taskqueue import Task, TaskAlreadyExistsError, TombstonedTaskError
 
 from fantasm import constants
 from fantasm.transition import Transition
 from fantasm.exceptions import UnknownEventError, InvalidEventNameRuntimeError
 from fantasm.utils import knuthHash
-from fantasm.models import _FantasmFanIn
 from fantasm.lock import RunOnceSemaphore
 
 class State(object):

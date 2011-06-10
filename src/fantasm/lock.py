@@ -24,7 +24,6 @@ from google.appengine.api import memcache
 from google.appengine.ext import db
 
 from fantasm.models import _FantasmTaskSemaphore
-from fantasm import constants
 from fantasm.exceptions import FanInWriteLockFailureRuntimeError
 from fantasm.exceptions import FanInReadLockFailureRuntimeError
 

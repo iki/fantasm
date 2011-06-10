@@ -1,5 +1,4 @@
 """ Integration tests for testing the Task execution order etc. """
-import re
 import logging
 
 import random # pylint: disable-msg=W0611
@@ -19,10 +18,11 @@ from fantasm_tests.actions import ContextRecorder, CountExecuteCallsFanIn, TestF
 from minimock import mock, restore
 from google.appengine.api import datastore_types
 
-# pylint: disable-msg=C0111, W0212, W0612, W0613
+# pylint: disable-msg=C0111, W0212, W0612, W0613, C0301
 # - docstrings not reqd in unit tests
 # - unit tests need access to protected members
 # - lots of unused args in unit tests
+# - lots of long lines for clarity
 
 class RunTasksBaseTest(AppEngineTestCase):
     
@@ -98,7 +98,7 @@ class LoggingTests( RunTasksBaseTest ):
         self.assertEqual("message", log.message)
         self.assertEqual("None\n", log.stack)
         
-    def test_FantasmInstance_stack(self):
+    def test_FantasmInstance_stack_error(self):
         try:
             list()[0]
         except Exception:
@@ -413,9 +413,9 @@ class RunTasksTests_FileFSMContinuationTests(RunTasksBaseTest):
                           'state-continuation--next-event': {'action': 0}}, 
                          getCounts(self.machineConfig))
         self.assertEqual([{'result': 'a', '__step__': 1}, 
-                          {'__step__': 1, 'result': 'b', u'__ge__': 1, '__ge__': {'0': 1}}, 
-                          {'__step__': 1, 'result': 'c', u'__ge__': 2, '__ge__': {'0': 2}}, 
-                          {'__step__': 1, 'result': 'd', u'__ge__': 3, '__ge__': {'0': 3}}], 
+                          {'__step__': 1, 'result': 'b', '__ge__': {'0': 1}}, 
+                          {'__step__': 1, 'result': 'c', '__ge__': {'0': 2}}, 
+                          {'__step__': 1, 'result': 'd', '__ge__': {'0': 3}}], 
                          TestFileContinuationFSMAction.CONTEXTS)
         
         
@@ -804,7 +804,7 @@ class RunTasksTests_DatastoreFSMContinuationFanInTests_memcache_problems(RunTask
                           'instanceName--continuation-1-3--state-initial--next-event--state-continuation--step-1', 
                           'instanceName--continuation-1-4--state-initial--next-event--state-continuation--step-1', 
                           'instanceName--continuation-1-5--state-initial--next-event--state-continuation--step-1', 
-                          'instanceName--continuation-1-5--state-continuation--pseudo-final--pseudo-final--step-2', # ???
+                          'instanceName--continuation-1-5--state-continuation--pseudo-final--pseudo-final--step-2', #???
                           'instanceName--state-continuation--next-event--state-fan-in--step-2-1',
                           'instanceName--state-continuation--next-event--state-fan-in--step-2-1',
                           'instanceName--state-continuation--next-event--state-fan-in--step-2-1',

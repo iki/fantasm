@@ -99,6 +99,7 @@ class TestMachineDictionaryProcessing(unittest.TestCase):
         loggingDouble = getLoggingDouble()
         self.machineDict[constants.MAX_RETRIES_ATTRIBUTE] = '3'
         fsm = config._MachineConfig(self.machineDict)
+        self.assertTrue(fsm)
         self.assertEquals(loggingDouble.count['warning'], 1)
         
     def test_taskRetryLimitInvalidRaisesException(self):
@@ -813,10 +814,11 @@ class TestNamespacedEvents(unittest.TestCase):
         yamlFile.write(yamlString)
         yamlFile.seek(0)
         configDict = yaml.load(yamlFile.read())
-        self.configuration = config.Configuration(configDict)
+        configuration = config.Configuration(configDict)
+        return configuration
         
     def test_module_level(self):
-        self._test(
+        configuration = self._test(
 """
 state_machines:
 - name: machineName
@@ -833,11 +835,11 @@ state_machines:
 """)
         self.assertEqual(
             'NAMESPACED-EVENT-MODULE-LEVEL', 
-            self.configuration.machines['machineName'].transitions['state1--NAMESPACED-EVENT-MODULE-LEVEL'].event
+            configuration.machines['machineName'].transitions['state1--NAMESPACED-EVENT-MODULE-LEVEL'].event
         )
         
     def test_module_level_other(self):
-        self._test(
+        configuration = self._test(
 """
 state_machines:
 - name: machineName
@@ -854,11 +856,11 @@ state_machines:
 """)
         self.assertEqual(
             'NAMESPACED-EVENT-MODULE-LEVEL-FSM-TESTS', 
-            self.configuration.machines['machineName'].transitions['state1--NAMESPACED-EVENT-MODULE-LEVEL-FSM-TESTS'].event
+            configuration.machines['machineName'].transitions['state1--NAMESPACED-EVENT-MODULE-LEVEL-FSM-TESTS'].event
         )
         
     def test_class_level(self):
-        self._test(
+        configuration = self._test(
 """
 state_machines:
 - name: machineName
@@ -875,11 +877,11 @@ state_machines:
 """)
         self.assertEqual(
             'NAMESPACED-EVENT-CLASS-LEVEL', 
-            self.configuration.machines['machineName'].transitions['state1--NAMESPACED-EVENT-CLASS-LEVEL'].event
+            configuration.machines['machineName'].transitions['state1--NAMESPACED-EVENT-CLASS-LEVEL'].event
         )
         
     def test_class_level_other(self):
-        self._test(
+        configuration = self._test(
 """
 state_machines:
 - name: machineName
@@ -896,11 +898,11 @@ state_machines:
 """)
         self.assertEqual(
             'NAMESPACED-EVENT-CLASS-LEVEL-FSM-TESTS', 
-            self.configuration.machines['machineName'].transitions['state1--NAMESPACED-EVENT-CLASS-LEVEL-FSM-TESTS'].event
+            configuration.machines['machineName'].transitions['state1--NAMESPACED-EVENT-CLASS-LEVEL-FSM-TESTS'].event
         )
         
     def test_just_a_plain_old_string(self):
-        self._test(
+        configuration = self._test(
 """
 state_machines:
 - name: machineName
@@ -917,7 +919,7 @@ state_machines:
 """)
         self.assertEqual(
             'just-a-plain-old-string', 
-            self.configuration.machines['machineName'].transitions['state1--just-a-plain-old-string'].event
+            configuration.machines['machineName'].transitions['state1--just-a-plain-old-string'].event
         )
         
         
@@ -950,6 +952,7 @@ class TestStatesWithAndWithoutDoActions(unittest.TestCase):
         yamlFile.seek(0)
         configDict = yaml.load(yamlFile.read())
         configuration = config.Configuration(configDict)
+        self.assertTrue(configuration)
     
     def test_finalStateWithDoAction(self):
         self._test(

@@ -1,7 +1,9 @@
 """ Tests for fantasm.log """
 
+# pylint: disable-msg=C0111
+# - docstrings not reqd in tests
+
 from fantasm_tests.fixtures import AppEngineTestCase
-from fantasm.fsm import FSM
 from fantasm.models import _FantasmLog
 from fantasm_tests.helpers import setUpByFilename
 from fantasm_tests.helpers import runQueuedTasks

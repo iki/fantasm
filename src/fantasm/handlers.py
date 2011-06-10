@@ -29,7 +29,7 @@ from fantasm.constants import NON_CONTEXT_PARAMS, STATE_PARAM, EVENT_PARAM, INST
                               RETRY_COUNT_PARAM, STARTED_AT_PARAM, IMMEDIATE_MODE_PARAM, MESSAGES_PARAM, \
                               HTTP_REQUEST_HEADER_PREFIX
 from fantasm.exceptions import UnknownMachineError, RequiredServicesUnavailableRuntimeError, FSMRuntimeError
-from fantasm.models import _FantasmTaskSemaphore, Encoder, _FantasmFanIn
+from fantasm.models import Encoder, _FantasmFanIn
 from fantasm.lock import RunOnceSemaphore
 
 REQUIRED_SERVICES = ('memcache', 'datastore_v3', 'taskqueue')
@@ -107,9 +107,9 @@ class FSMGraphvizHandler(webapp.RequestHandler):
         chd = self.request.GET.get('chd', '')
         chof = self.request.GET.get('chof', 'png')
         
-        type = self.request.GET.get('type', False)
+        tipe = self.request.GET.get('type', False)
         
-        if not type:
+        if not tipe:
             self.response.out.write(
 """
 <html>

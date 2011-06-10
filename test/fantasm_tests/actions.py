@@ -1,6 +1,5 @@
 """ FSMActions used in unit tests """
 
-import logging
 from fantasm.action import DatastoreContinuationFSMAction, ContinuationFSMAction
 from google.appengine.ext import db
 from fantasm.constants import FORK_PARAM
@@ -16,7 +15,7 @@ class Custom(object):
         return repr(self.impl)
 
 class CustomImpl(Custom):
-    def __init__(self, a=None, b=None):
+    def __init__(self, a=None, b=None): # pylint: disable-msg=W0231
         self.a = a
         self.b = b
     def __repr__(self):

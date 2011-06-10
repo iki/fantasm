@@ -13,7 +13,7 @@ from fantasm.handlers import TemporaryStateObject
 from fantasm.fsm import FSMContext, FSM, startStateMachine
 from fantasm.transition import Transition
 from fantasm.exceptions import UnknownMachineError, UnknownStateError, UnknownEventError, \
-                               FanInWriteLockFailureRuntimeError, FanInReadLockFailureRuntimeError, \
+                               FanInWriteLockFailureRuntimeError, \
                                YamlFileCircularImportError
 from fantasm.state import State
 from fantasm.models import _FantasmFanIn
@@ -31,7 +31,7 @@ from fantasm_tests.helpers import getCounts
 from fantasm_tests.actions import CountExecuteCalls
 from fantasm_tests.actions import CountExecuteCallsWithFork
 
-from minimock import mock, restore, mocked
+from minimock import mock, restore
 
 # pylint: disable-msg=C0111, W0212, W0612, W0613
 # - docstrings not reqd in unit tests
@@ -433,7 +433,6 @@ class TaskQueueFSMRetryTests(AppEngineTestCase):
     def test_taskRetryLimitAddedToQueuedTask(self):
         def execute(context, obj):
             return 'ok1'            
-        from fantasm_tests.actions import CountExecuteCalls
         mock(name='CountExecuteCalls.execute', returns_func=execute, tracker=None)
         self.context.dispatch(self.initEvent, TemporaryStateObject())
         self.assertEquals(len(self.mockQueue.tasks), 1)
@@ -443,7 +442,6 @@ class TaskQueueFSMRetryTests(AppEngineTestCase):
     def test_minBackoffSecondsAddedToQueuedTask(self):
         def execute(context, obj):
             return 'ok2'            
-        from fantasm_tests.actions import CountExecuteCalls
         mock(name='CountExecuteCalls.execute', returns_func=execute, tracker=None)
         self.context.dispatch(self.initEvent, TemporaryStateObject())
         self.assertEquals(len(self.mockQueue.tasks), 1)
@@ -453,7 +451,6 @@ class TaskQueueFSMRetryTests(AppEngineTestCase):
     def test_maxBackoffSecondsAddedToQueuedTask(self):
         def execute(context, obj):
             return 'ok3'            
-        from fantasm_tests.actions import CountExecuteCalls
         mock(name='CountExecuteCalls.execute', returns_func=execute, tracker=None)
         self.context.dispatch(self.initEvent, TemporaryStateObject())
         self.assertEquals(len(self.mockQueue.tasks), 1)
@@ -463,7 +460,6 @@ class TaskQueueFSMRetryTests(AppEngineTestCase):
     def test_taskAgeLimitAddedToQueuedTask(self):
         def execute(context, obj):
             return 'ok4'            
-        from fantasm_tests.actions import CountExecuteCalls
         mock(name='CountExecuteCalls.execute', returns_func=execute, tracker=None)
         self.context.dispatch(self.initEvent, TemporaryStateObject())
         self.assertEquals(len(self.mockQueue.tasks), 1)
@@ -473,7 +469,6 @@ class TaskQueueFSMRetryTests(AppEngineTestCase):
     def test_maxDoublingsAddedToQueuedTask(self):
         def execute(context, obj):
             return 'ok5'            
-        from fantasm_tests.actions import CountExecuteCalls
         mock(name='CountExecuteCalls.execute', returns_func=execute, tracker=None)
         self.context.dispatch(self.initEvent, TemporaryStateObject())
         self.assertEquals(len(self.mockQueue.tasks), 1)
@@ -765,7 +760,8 @@ class ContextYamlImportTests(unittest.TestCase):
         self.assertTrue('Foo' in self.currentConfig.machines)
         
     def test_import_circular_fails(self):
-        self.assertRaises(YamlFileCircularImportError, setUpByFilename, self, 'test-YamlImportCircular.yaml', machineName='Foo')
+        self.assertRaises(YamlFileCircularImportError, setUpByFilename, 
+                          self, 'test-YamlImportCircular.yaml', machineName='Foo')
 
 class SpawnTests(unittest.TestCase):
 

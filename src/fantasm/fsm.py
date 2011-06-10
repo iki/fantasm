@@ -38,7 +38,6 @@ import simplejson
 from google.appengine.api.taskqueue.taskqueue import Task, TaskAlreadyExistsError, TombstonedTaskError, \
                                                      TaskRetryOptions
 from google.appengine.ext import db
-from google.appengine.api import memcache
 from fantasm import constants, config
 from fantasm.log import Logger
 from fantasm.state import State
@@ -504,14 +503,15 @@ class FSMContext(dict):
         
         # self.currentState is already transitioned away from self.startingState
         transition = self.currentState.getTransition(nextEvent)
+        queueName = self.__obj.get(constants.QUEUE_NAME_PARAM) or transition.queueName
         if transition.target.isFanIn:
             task = self._queueDispatchFanIn(nextEvent, fanInPeriod=transition.target.fanInPeriod,
                                             retryOptions=transition.retryOptions,
-                                            queueName=self.__obj.get(constants.QUEUE_NAME_PARAM) or transition.queueName)
+                                            queueName=queueName)
         else:
             task = self._queueDispatchNormal(nextEvent, queue=queue, countdown=transition.countdown,
                                              retryOptions=transition.retryOptions,
-                                             queueName=self.__obj.get(constants.QUEUE_NAME_PARAM) or transition.queueName)
+                                             queueName=queueName)
             
         return task
         

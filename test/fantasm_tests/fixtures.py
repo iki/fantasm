@@ -33,6 +33,8 @@ class AppEngineTestCase(unittest.TestCase):
         tq = apiproxy_stub_map.apiproxy.GetStub('taskqueue')
         
         tq.GetTasks('default')
+        # pylint: disable-msg=W0212
+        # - workaround to prevent GetTasks from re-parsing queue.yaml on every call
         for value in (tq._queues or {}).values():
             value._queue_yaml_parser = None
         

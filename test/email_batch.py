@@ -4,7 +4,6 @@ from datetime import datetime
 from google.appengine.ext import db
 from google.appengine.ext import webapp
 from fantasm.action import DatastoreContinuationFSMAction
-import fantasm
 
 # pylint: disable-msg=C0111, W0613, C0103
 # - docstring not reqd
